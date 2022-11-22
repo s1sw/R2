@@ -179,9 +179,37 @@ namespace R2::VK
         return true;
     }
 
+    bool Core::checkRaytracingSupport(VkPhysicalDevice device)
+    {
+        uint32_t extCount;
+        VKCHECK(vkEnumerateDeviceExtensionProperties(device, nullptr, &extCount, nullptr));
+        std::vector<VkExtensionProperties> extProps;
+        extProps.resize(extCount);
+        VKCHECK(vkEnumerateDeviceExtensionProperties(device, nullptr, &extCount, extProps.data()));
+
+        bool hasAccelStructure = false;
+        bool hasRayQuery = false;
+
+        for (auto& extProp : extProps)
+        {
+            if (strcmp(extProp.extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME) == 0)
+            {
+                hasRayQuery = true;
+            }
+
+            if (strcmp(extProp.extensionName, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) == 0)
+            {
+                hasAccelStructure = true;
+            }
+        }
+
+        return hasRayQuery && hasAccelStructure;
+    }
+
     void Core::createDevice(const char** deviceExts)
     {
         VkDeviceCreateInfo dci{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+        bool supportsRT = checkRaytracingSupport(handles.PhysicalDevice);
 
         // Features
         // ========
@@ -212,29 +240,35 @@ namespace R2::VK
         features11.pNext = &features12;
         features12.pNext = &features13;
 
-        // VkPhysicalDeviceAccelerationStructureFeaturesKHR asFeatures{
-        // VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR }; asFeatures.accelerationStructure =
-        // VK_TRUE;
+        VkPhysicalDeviceAccelerationStructureFeaturesKHR asFeatures
+            { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR };
+        asFeatures.accelerationStructure = VK_TRUE;
 
-        // features13.pNext = &asFeatures;
+        VkPhysicalDeviceRayQueryFeaturesKHR rqFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR };
+        rqFeatures.rayQuery = VK_TRUE;
 
-        // VkPhysicalDeviceRayQueryFeaturesKHR rqFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR };
-        // rqFeatures.rayQuery = VK_TRUE;
+        VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtpFeatures
+            { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR };
+        rtpFeatures.rayTracingPipeline = VK_TRUE;
 
-        // asFeatures.pNext = &rqFeatures;
-
-        // VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtpFeatures{
-        // VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR }; rtpFeatures.rayTracingPipeline =
-        // VK_TRUE; rqFeatures.pNext = &rtpFeatures;
+        // Set up the features chain if the device supports raytracing
+        if (supportsRT)
+        {
+            features13.pNext = &asFeatures;
+            asFeatures.pNext = &rqFeatures;
+            rqFeatures.pNext = &rtpFeatures;
+        }
 
         // Extensions
         // ==========
         std::vector<const char*> extensions;
-        // extensions.push_back(VK_KHR_RAY_QUERY_EXTENSION_NAME);
-        // extensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
-        // extensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
-        // extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
         extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
+        if (supportsRT)
+        {
+            extensions.push_back(VK_KHR_RAY_QUERY_EXTENSION_NAME);
+            extensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+        }
 
         if (deviceExts != nullptr)
         {

@@ -158,6 +158,7 @@ namespace R2::VK
 		void selectPhysicalDevice();
 		void findQueueFamilies();
 		bool checkFeatures(VkPhysicalDevice device);
+        bool checkRaytracingSupport(VkPhysicalDevice device);
 		void createDevice(const char** deviceExts);
 		void createCommandPool();
 		void createAllocator();
