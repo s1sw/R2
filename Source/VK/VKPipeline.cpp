@@ -86,7 +86,7 @@ namespace R2::VK
     Pipeline::~Pipeline()
     {
         DeletionQueue* dq = core->perFrameResources[core->frameIndex].DeletionQueue;
-        dq->QueueObjectDeletion(pipeline, VK_OBJECT_TYPE_PIPELINE);
+        DQ_QueueObjectDeletion(dq, pipeline, VK_OBJECT_TYPE_PIPELINE);
     }
 
     VkPipeline Pipeline::GetNativeHandle()

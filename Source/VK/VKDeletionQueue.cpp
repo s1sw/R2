@@ -11,6 +11,22 @@ namespace R2::VK
     {
     }
 
+#ifdef DQ_TRACK_SOURCE
+    void DeletionQueue::QueueObjectDeletion(void* object, uint32_t type, int line, const char* file)
+    {
+        objectDeletions.emplace_back(object, type, line, file);
+    }
+
+    void DeletionQueue::QueueMemoryFree(VmaAllocation allocation, int line, const char* file)
+    {
+        memoryFrees.emplace_back(allocation, line, file);
+    }
+
+    void DeletionQueue::QueueDescriptorSetFree(VkDescriptorPool pool, VkDescriptorSet set, int line, const char* file)
+    {
+        dsFrees.emplace_back(pool, set, line, file);
+    }
+#else
     void DeletionQueue::QueueObjectDeletion(void* object, uint32_t type)
     {
         objectDeletions.emplace_back(object, type);
@@ -25,6 +41,7 @@ namespace R2::VK
     {
         dsFrees.emplace_back(pool, set);
     }
+#endif
 
     void DeletionQueue::Cleanup()
     {

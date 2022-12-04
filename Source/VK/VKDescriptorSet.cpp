@@ -25,7 +25,7 @@ namespace R2::VK
     DescriptorSet::~DescriptorSet()
     {
         DeletionQueue* dq = core->perFrameResources[core->frameIndex].DeletionQueue;
-        dq->QueueDescriptorSetFree(core->GetHandles()->DescriptorPool, set);
+        DQ_QueueDescriptorSetFree(dq, core->GetHandles()->DescriptorPool, set);
         allocatedDescriptorSets--;
     }
 

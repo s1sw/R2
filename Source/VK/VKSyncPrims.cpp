@@ -69,6 +69,6 @@ namespace R2::VK
 
     Event::~Event()
     {
-        core->getCurrentDq()->QueueObjectDeletion(event, VK_OBJECT_TYPE_EVENT);
+        DQ_QueueObjectDeletion(core->getCurrentDq(), event, VK_OBJECT_TYPE_EVENT);
     }
 }

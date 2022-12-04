@@ -162,7 +162,7 @@ namespace R2::VK
     Buffer::~Buffer()
     {
         DeletionQueue* dq = renderer->getCurrentDq();
-        dq->QueueObjectDeletion(buffer, VK_OBJECT_TYPE_BUFFER);
-        dq->QueueMemoryFree(allocation);
+        DQ_QueueObjectDeletion(dq, buffer, VK_OBJECT_TYPE_BUFFER);
+        DQ_QueueMemoryFree(dq, allocation);
     }
 }

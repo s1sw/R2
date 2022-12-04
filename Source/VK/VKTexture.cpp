@@ -348,13 +348,13 @@ namespace R2::VK
 
         if (allocation)
         {
-            dq->QueueMemoryFree(allocation);
+            DQ_QueueMemoryFree(dq, allocation);
         }
 
         if (image)
         {
-            dq->QueueObjectDeletion(image, VK_OBJECT_TYPE_IMAGE);
-            dq->QueueObjectDeletion(imageView, VK_OBJECT_TYPE_IMAGE_VIEW);
+            DQ_QueueObjectDeletion(dq, image, VK_OBJECT_TYPE_IMAGE);
+            DQ_QueueObjectDeletion(dq, imageView, VK_OBJECT_TYPE_IMAGE_VIEW);
         }
     }
 
@@ -394,7 +394,7 @@ namespace R2::VK
         DeletionQueue* dq;
 
         dq = core->perFrameResources[core->frameIndex].DeletionQueue;
-        dq->QueueObjectDeletion(imageView, VK_OBJECT_TYPE_IMAGE_VIEW);
+        DQ_QueueObjectDeletion(dq, imageView, VK_OBJECT_TYPE_IMAGE_VIEW);
     }
 
     VkImageView TextureView::GetNativeHandle()

@@ -31,6 +31,7 @@ namespace R2::VK
 		: inFrame(false)
 		, frameIndex(0)
 	{
+        this->dbgOutRecv = dbgOutRecv;
 		vmaDebugOutputRecv = dbgOutRecv;
 
 		setAllocCallbacks();
@@ -78,8 +79,6 @@ namespace R2::VK
 
 			perFrameResources[i].StagingMapped = (char*)perFrameResources[i].StagingBuffer->Map();
 		}
-
-		this->dbgOutRecv = dbgOutRecv;
 	}
 
 	const GraphicsDeviceInfo& Core::GetDeviceInfo() const

@@ -19,7 +19,7 @@ namespace R2::VK
     Sampler::~Sampler()
     {
         DeletionQueue* dq = core->perFrameResources[core->frameIndex].DeletionQueue;
-        dq->QueueObjectDeletion(sampler, VK_OBJECT_TYPE_SAMPLER);
+        DQ_QueueObjectDeletion(dq, sampler, VK_OBJECT_TYPE_SAMPLER);
     }
 
     SamplerBuilder::SamplerBuilder(Core* core)
