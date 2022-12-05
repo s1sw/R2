@@ -160,6 +160,12 @@ namespace R2::VK
         return *this;
     }
 
+    PipelineBuilder& PipelineBuilder::AlphaToCoverage(bool blend)
+    {
+        this->alphaToCoverage = blend;
+        return *this;
+    }
+
     PipelineBuilder& PipelineBuilder::AdditiveBlend(bool blend)
     {
         this->additiveBlend = blend;
@@ -286,6 +292,10 @@ namespace R2::VK
         // Multisample state
         VkPipelineMultisampleStateCreateInfo multisampleStateCI{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
         multisampleStateCI.rasterizationSamples = (VkSampleCountFlagBits)numSamples;
+        if (alphaToCoverage)
+        {
+            multisampleStateCI.alphaToCoverageEnable = VK_TRUE;
+        }
 
         // Attachment blend states
         std::vector<VkPipelineColorBlendAttachmentState> attachmentBlendStates;
