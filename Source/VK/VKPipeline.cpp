@@ -130,7 +130,7 @@ namespace R2::VK
         return *this;
     }
 
-    PipelineBuilder& PipelineBuilder::AddVertexBinding(VertexBinding&& binding)
+    PipelineBuilder& PipelineBuilder::AddVertexBinding(VertexBinding& binding)
     {
         vertexBindings.push_back(binding);
         return *this;

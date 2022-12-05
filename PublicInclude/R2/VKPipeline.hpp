@@ -120,7 +120,7 @@ namespace R2::VK
         PipelineBuilder& AddShader(ShaderStage stage, ShaderModule& mod);
         PipelineBuilder& ColorAttachmentFormat(TextureFormat format);
         PipelineBuilder& DepthAttachmentFormat(TextureFormat format);
-        PipelineBuilder& AddVertexBinding(VertexBinding&& Binding);
+        PipelineBuilder& AddVertexBinding(VertexBinding& Binding);
         PipelineBuilder& PrimitiveTopology(Topology topology);
         PipelineBuilder& CullMode(CullMode mode);
         PipelineBuilder& Layout(PipelineLayout* layout);
