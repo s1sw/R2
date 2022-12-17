@@ -79,6 +79,12 @@ namespace R2::VK
 		float TimestampPeriod;
 	};
 
+	struct GraphicsSupportedFeatures
+	{
+		bool RayTracing;
+		bool VariableRateShading;
+	};
+
 	class Core
 	{
 	public:
@@ -86,6 +92,7 @@ namespace R2::VK
              const char** instanceExts = nullptr, const char** deviceExts = nullptr);
 
 		const GraphicsDeviceInfo& GetDeviceInfo() const;
+		const GraphicsSupportedFeatures& GetSupportedFeatures() const;
 
 		Texture* CreateTexture(const TextureCreateInfo& createInfo);
 		void DestroyTexture(Texture* tex);
@@ -158,6 +165,7 @@ namespace R2::VK
 		void selectPhysicalDevice();
 		void findQueueFamilies();
 		bool checkFeatures(VkPhysicalDevice device);
+		bool checkExtensionSupport(VkPhysicalDevice device, const char* extension);
         bool checkRaytracingSupport(VkPhysicalDevice device);
 		void createDevice(const char** deviceExts);
 		void createCommandPool();
@@ -168,6 +176,7 @@ namespace R2::VK
 
 		Handles handles;
         GraphicsDeviceInfo deviceInfo;
+		GraphicsSupportedFeatures supportedFeatures;
 		VkDebugUtilsMessengerEXT messenger;
 		IDebugOutputReceiver* dbgOutRecv;
 		PerFrameResources perFrameResources[2];

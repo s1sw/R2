@@ -86,6 +86,11 @@ namespace R2::VK
 		return deviceInfo;
 	}
 
+	const GraphicsSupportedFeatures& Core::GetSupportedFeatures() const
+	{
+		return supportedFeatures;
+	}
+
 	Texture* Core::CreateTexture(const TextureCreateInfo& createInfo)
 	{
 		return new Texture(this, createInfo);

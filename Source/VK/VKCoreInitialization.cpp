@@ -75,13 +75,14 @@ namespace R2::VK
         if (enableValidation)
         {
             VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo{
-                VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
+                VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
+            };
             messengerCreateInfo.pfnUserCallback = vulkanDebugMessageCallback;
             messengerCreateInfo.messageSeverity =
                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
             messengerCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
-                                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
+                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
             messengerCreateInfo.pUserData = this;
             VKCHECK(vkCreateDebugUtilsMessengerEXT(
                 handles.Instance, &messengerCreateInfo, handles.AllocCallbacks, &messenger));
@@ -179,7 +180,7 @@ namespace R2::VK
         return true;
     }
 
-    bool Core::checkRaytracingSupport(VkPhysicalDevice device)
+    bool Core::checkExtensionSupport(VkPhysicalDevice device, const char* extension)
     {
         uint32_t extCount;
         VKCHECK(vkEnumerateDeviceExtensionProperties(device, nullptr, &extCount, nullptr));
@@ -192,24 +193,30 @@ namespace R2::VK
 
         for (auto& extProp : extProps)
         {
-            if (strcmp(extProp.extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME) == 0)
-            {
-                hasRayQuery = true;
-            }
-
-            if (strcmp(extProp.extensionName, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) == 0)
-            {
-                hasAccelStructure = true;
-            }
+            if (strcmp(extProp.extensionName, extension) == 0)
+                return true;
         }
 
-        return hasRayQuery && hasAccelStructure;
+        return false;
     }
+
+    bool Core::checkRaytracingSupport(VkPhysicalDevice device)
+    {
+        return checkExtensionSupport(device, VK_KHR_RAY_QUERY_EXTENSION_NAME) &&
+               checkExtensionSupport(device, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+    }
+
+    struct ChainHeader
+    {
+        VkStructureType sType;
+        void* pNext;
+    };
 
     void Core::createDevice(const char** deviceExts)
     {
         VkDeviceCreateInfo dci{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
-        bool supportsRT = checkRaytracingSupport(handles.PhysicalDevice);
+        supportedFeatures.RayTracing = checkRaytracingSupport(handles.PhysicalDevice);
+        supportedFeatures.VariableRateShading = checkExtensionSupport(handles.PhysicalDevice, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
 
         // Features
         // ========
@@ -221,6 +228,7 @@ namespace R2::VK
         features.features.shaderStorageImageMultisample = true;
         features.features.samplerAnisotropy = true;
         features.features.multiDrawIndirect = true;
+        features.features.fragmentStoresAndAtomics = true;
         features11.multiview = true;
         features11.shaderDrawParameters = true;
         features12.descriptorIndexing = true;
@@ -240,23 +248,33 @@ namespace R2::VK
         features11.pNext = &features12;
         features12.pNext = &features13;
 
+        ChainHeader* chainEnd = (ChainHeader*)&features13;
+
         VkPhysicalDeviceAccelerationStructureFeaturesKHR asFeatures
-            { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR };
+            {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR};
         asFeatures.accelerationStructure = VK_TRUE;
 
-        VkPhysicalDeviceRayQueryFeaturesKHR rqFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR };
+        VkPhysicalDeviceRayQueryFeaturesKHR rqFeatures{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR};
         rqFeatures.rayQuery = VK_TRUE;
 
         VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtpFeatures
-            { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR };
+            {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR};
         rtpFeatures.rayTracingPipeline = VK_TRUE;
 
         // Set up the features chain if the device supports raytracing
-        if (supportsRT)
+        if (supportedFeatures.RayTracing)
         {
-            features13.pNext = &asFeatures;
+            chainEnd->pNext = &asFeatures;
             asFeatures.pNext = &rqFeatures;
             rqFeatures.pNext = &rtpFeatures;
+            chainEnd = (ChainHeader*)&rtpFeatures;
+        }
+
+        VkPhysicalDeviceFragmentShadingRateFeaturesKHR vrsFeatures{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR};
+        if (supportedFeatures.VariableRateShading)
+        {
+            vrsFeatures.attachmentFragmentShadingRate = VK_TRUE;
+            vrsFeatures.primitiveFragmentShadingRate = VK_FALSE;
         }
 
         // Extensions
@@ -264,10 +282,15 @@ namespace R2::VK
         std::vector<const char*> extensions;
         extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
-        if (supportsRT)
+        if (supportedFeatures.RayTracing)
         {
             extensions.push_back(VK_KHR_RAY_QUERY_EXTENSION_NAME);
             extensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+        }
+
+        if (supportedFeatures.VariableRateShading)
+        {
+            extensions.push_back(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
         }
 
         if (deviceExts != nullptr)
@@ -379,7 +402,8 @@ namespace R2::VK
         VkDescriptorPoolSize poolSizes[] = {
             {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5000},
             {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 500},
-            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 500}};
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 500}
+        };
 
         dpci.pPoolSizes = poolSizes;
         dpci.poolSizeCount = sizeof(poolSizes) / sizeof(VkDescriptorPoolSize);
