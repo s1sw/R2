@@ -144,6 +144,8 @@ namespace R2::VK
         void SetEvent(Event* evt);
         void ResetEvent(Event* evt);
 
+        void EndRendering();
+
         VkCommandBuffer GetNativeHandle();
     private:
         VkCommandBuffer cb;
