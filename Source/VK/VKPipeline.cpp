@@ -311,7 +311,7 @@ namespace R2::VK
                 cbas.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
                 cbas.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
                 cbas.colorBlendOp = VK_BLEND_OP_ADD;
-                cbas.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+                cbas.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
                 cbas.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
                 cbas.alphaBlendOp = VK_BLEND_OP_ADD;
             }
