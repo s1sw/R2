@@ -32,7 +32,8 @@ namespace R2::VK
     DescriptorSetLayout::DescriptorSetLayout(Core* core, VkDescriptorSetLayout layout)
         : core(core)
         , layout(layout)
-    {}
+    {
+    }
 
     VkDescriptorSetLayout DescriptorSetLayout::GetNativeHandle()
     {
@@ -47,9 +48,11 @@ namespace R2::VK
 
     DescriptorSetLayoutBuilder::DescriptorSetLayoutBuilder(Core* core)
         : core(core)
-    {}
+    {
+    }
 
-    DescriptorSetLayoutBuilder& DescriptorSetLayoutBuilder::Binding(uint32_t binding, DescriptorType type, uint32_t count, ShaderStage stage)
+    DescriptorSetLayoutBuilder& DescriptorSetLayoutBuilder::Binding(uint32_t binding, DescriptorType type,
+                                                                    uint32_t count, ShaderStage stage)
     {
         DescriptorBinding db{};
         db.Binding = binding;
@@ -58,7 +61,7 @@ namespace R2::VK
         db.Stage = stage;
 
         bindings.push_back(db);
-        
+
         return *this;
     }
 
@@ -120,7 +123,7 @@ namespace R2::VK
             bindingFlags.push_back(thisBindFlags);
         }
 
-        VkDescriptorSetLayoutCreateInfo dslci{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        VkDescriptorSetLayoutCreateInfo dslci{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
         dslci.bindingCount = (uint32_t)layoutBindings.size();
         dslci.pBindings = layoutBindings.data();
         if (hasUpdateAfterBind)
@@ -128,7 +131,9 @@ namespace R2::VK
             dslci.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
         }
 
-        VkDescriptorSetLayoutBindingFlagsCreateInfo bindFlagsCreateInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
+        VkDescriptorSetLayoutBindingFlagsCreateInfo bindFlagsCreateInfo{
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO
+        };
         bindFlagsCreateInfo.pBindingFlags = bindingFlags.data();
         bindFlagsCreateInfo.bindingCount = bindingFlags.size();
 
@@ -145,9 +150,18 @@ namespace R2::VK
     DescriptorSetUpdater::DescriptorSetUpdater(Core* core, DescriptorSet* ds)
         : handles(core->GetHandles())
         , ds(ds)
-    {}
+    {
+    }
 
-    DescriptorSetUpdater& DescriptorSetUpdater::AddTexture(uint32_t binding, uint32_t arrayElement, DescriptorType type, Texture* tex, Sampler* samp)
+    DescriptorSetUpdater::DescriptorSetUpdater(Core* core, DescriptorSet* ds, int numDescriptors)
+        : handles(core->GetHandles())
+        , ds(ds)
+    {
+        descriptorWrites.reserve(numDescriptors);
+    }
+
+    DescriptorSetUpdater& DescriptorSetUpdater::AddTexture(uint32_t binding, uint32_t arrayElement, DescriptorType type,
+                                                           Texture* tex, Sampler* samp)
     {
         DSWrite dw{};
         dw.Binding = binding;
@@ -163,7 +177,9 @@ namespace R2::VK
         return *this;
     }
 
-    DescriptorSetUpdater& DescriptorSetUpdater::AddTextureWithLayout(uint32_t binding, uint32_t arrayElement, DescriptorType type, Texture* tex, ImageLayout layout, Sampler* samp)
+    DescriptorSetUpdater& DescriptorSetUpdater::AddTextureWithLayout(uint32_t binding, uint32_t arrayElement,
+                                                                     DescriptorType type, Texture* tex,
+                                                                     ImageLayout layout, Sampler* samp)
     {
         DSWrite dw{};
         dw.Binding = binding;
@@ -179,7 +195,8 @@ namespace R2::VK
         return *this;
     }
 
-    DescriptorSetUpdater& DescriptorSetUpdater::AddTextureView(uint32_t binding, uint32_t arrayElement, DescriptorType type, TextureView* texView, Sampler* samp)
+    DescriptorSetUpdater& DescriptorSetUpdater::AddTextureView(uint32_t binding, uint32_t arrayElement,
+                                                               DescriptorType type, TextureView* texView, Sampler* samp)
     {
         DSWrite dw{};
         dw.Binding = binding;
@@ -195,7 +212,8 @@ namespace R2::VK
         return *this;
     }
 
-    DescriptorSetUpdater& DescriptorSetUpdater::AddBuffer(uint32_t binding, uint32_t arrayElement, DescriptorType type, Buffer* buf)
+    DescriptorSetUpdater& DescriptorSetUpdater::AddBuffer(uint32_t binding, uint32_t arrayElement, DescriptorType type,
+                                                          Buffer* buf)
     {
         DSWrite dw{};
         dw.Binding = binding;
@@ -235,17 +253,17 @@ namespace R2::VK
 
         for (DSWrite& dw : descriptorWrites)
         {
-            VkWriteDescriptorSet vw{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+            VkWriteDescriptorSet vw{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
             vw.dstSet = ds->GetNativeHandle();
             vw.dstBinding = dw.Binding;
             vw.dstArrayElement = dw.ArrayElement;
             vw.descriptorCount = 1;
             vw.descriptorType = (VkDescriptorType)dw.Type;
-            
+
             switch (dw.WriteType)
             {
-                case DSWriteType::Texture:
-                case DSWriteType::TextureView:
+            case DSWriteType::Texture:
+            case DSWriteType::TextureView:
                 {
                     VkDescriptorImageInfo dii{};
                     if (dw.TextureLayout == ImageLayout::Undefined)
@@ -272,7 +290,7 @@ namespace R2::VK
                     vw.pImageInfo = &imageInfos[imageInfos.size() - 1];
                     break;
                 }
-                case DSWriteType::Buffer:
+            case DSWriteType::Buffer:
                 {
                     VkDescriptorBufferInfo bii{};
                     bii.buffer = dw.Buffer->GetNativeHandle();
