@@ -10,12 +10,12 @@
 #include <vk_mem_alloc.h>
 #include <string.h>
 
-size_t operator""_KB(size_t sz)
+size_t operator""_KB(unsigned long long sz)
 {
     return sz * 1000;
 }
 
-size_t operator""_MB(size_t sz)
+size_t operator""_MB(unsigned long long sz)
 {
     return sz * 1000 * 1000;
 }
