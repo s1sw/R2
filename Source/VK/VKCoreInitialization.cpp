@@ -1,6 +1,9 @@
 #include <R2/VKCore.hpp>
 #include <R2/R2.hpp>
 #include <volk.h>
+#ifdef __ANDROID__
+#include <vulkan/vulkan_android.h>
+#endif
 #include <vk_mem_alloc.h>
 #include <vector>
 #include <stdint.h>
@@ -51,7 +54,12 @@ namespace R2::VK
         }
 
         extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+#ifdef _WIN32
         extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+#endif
+#ifdef __ANDROID__
+        extensions.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
+#endif
 
         if (instanceExts != nullptr)
         {
@@ -225,7 +233,9 @@ namespace R2::VK
         VkPhysicalDeviceVulkan12Features features12{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
         VkPhysicalDeviceVulkan13Features features13{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
 
+#ifndef __ANDROID__
         features.features.shaderStorageImageMultisample = true;
+#endif
         features.features.samplerAnisotropy = true;
         features.features.multiDrawIndirect = true;
         features.features.fragmentStoresAndAtomics = true;
@@ -240,8 +250,11 @@ namespace R2::VK
         features12.descriptorBindingStorageBufferUpdateAfterBind = true;
         features12.shaderSampledImageArrayNonUniformIndexing = true;
         features12.runtimeDescriptorArray = true;
+        features12.imagelessFramebuffer = true;
+#ifndef __ANDROID__
         features13.synchronization2 = true;
         features13.dynamicRendering = true;
+#endif
 
         dci.pNext = &features;
         features.pNext = &features11;
@@ -273,6 +286,7 @@ namespace R2::VK
         VkPhysicalDeviceFragmentShadingRateFeaturesKHR vrsFeatures{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR};
         if (supportedFeatures.VariableRateShading)
         {
+            chainEnd->pNext = &vrsFeatures;
             vrsFeatures.attachmentFragmentShadingRate = VK_TRUE;
             vrsFeatures.primitiveFragmentShadingRate = VK_FALSE;
         }
@@ -286,12 +300,19 @@ namespace R2::VK
         {
             extensions.push_back(VK_KHR_RAY_QUERY_EXTENSION_NAME);
             extensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+            extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
         }
 
         if (supportedFeatures.VariableRateShading)
         {
             extensions.push_back(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
         }
+
+#ifdef __ANDROID__
+        extensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+        extensions.push_back(VK_KHR_IMAGELESS_FRAMEBUFFER_EXTENSION_NAME);
+        extensions.push_back(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
+#endif
 
         if (deviceExts != nullptr)
         {
@@ -385,7 +406,7 @@ namespace R2::VK
         vulkanFunctions.vkUnmapMemory = vkUnmapMemory;
 
         VmaAllocatorCreateInfo vaci{};
-        vaci.vulkanApiVersion = VK_API_VERSION_1_3;
+        vaci.vulkanApiVersion = VK_API_VERSION_1_1;
         vaci.physicalDevice = handles.PhysicalDevice;
         vaci.device = handles.Device;
         vaci.instance = handles.Instance;
@@ -402,7 +423,8 @@ namespace R2::VK
         VkDescriptorPoolSize poolSizes[] = {
             {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5000},
             {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 500},
-            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 500}
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 500},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 500}
         };
 
         dpci.pPoolSizes = poolSizes;

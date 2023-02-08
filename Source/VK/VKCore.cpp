@@ -7,6 +7,7 @@
 #include <R2/VKCommandBuffer.hpp>
 #include <R2/VKDescriptorSet.hpp>
 #include <volk.h>
+#include <RenderPassCache.hpp>
 #include <vk_mem_alloc.h>
 #include <string.h>
 
@@ -26,14 +27,34 @@ namespace R2::VK
 {
     const uint32_t NUM_FRAMES_IN_FLIGHT = 2;
     const size_t STAGING_BUFFER_SIZE = 64_MB;
+    IDebugOutputReceiver* g_dbgOutRecv;
+#ifdef R2_USE_RENDERPASS_FALLBACK
+    RenderPassCache* g_renderPassCache;
+#endif
+    
+    void onFailedVkCheck(int res, const char* file, int line)
+    {
+        char buffer[512];
+        if (g_dbgOutRecv)
+        {
+            sprintf(buffer, "RESULT: %i (file %s, line %i)", res, file, line);
+            g_dbgOutRecv->DebugMessage(buffer);
+        }
+        else
+        {
+            printf("RESULT: %i (file %s, line %i)", res, file, line);
+        }
+        abort();
+    }
 
     Core::Core(IDebugOutputReceiver* dbgOutRecv, bool enableValidation, const char** instanceExts,
                const char** deviceExts)
         : inFrame(false)
-          , frameIndex(0)
+        , frameIndex(0)
     {
         this->dbgOutRecv = dbgOutRecv;
         vmaDebugOutputRecv = dbgOutRecv;
+        g_dbgOutRecv = dbgOutRecv;
 
         setAllocCallbacks();
         createInstance(enableValidation, instanceExts);
@@ -42,6 +63,10 @@ namespace R2::VK
         createCommandPool();
         createAllocator();
         createDescriptorPool();
+
+#ifdef R2_USE_RENDERPASS_FALLBACK
+        g_renderPassCache = new RenderPassCache(this);
+#endif
 
         VkPhysicalDeviceProperties deviceProps{};
         vkGetPhysicalDeviceProperties(handles.PhysicalDevice, &deviceProps);
@@ -214,6 +239,11 @@ namespace R2::VK
         return CommandBuffer(perFrameResources[frameIndex].CommandBuffer);
     }
 
+    CommandBuffer Core::GetFrameCommandBuffer(int index)
+    {
+        return CommandBuffer(perFrameResources[index].CommandBuffer);
+    }
+
     VkSemaphore Core::GetFrameCompletionSemaphore()
     {
         return perFrameResources[frameIndex].Completion;
@@ -282,7 +312,7 @@ namespace R2::VK
 
         memcpy(frameResources.StagingMapped + frameResources.StagingOffset, data, dataSize);
 
-        frameResources.BufferUploads.emplace_back(buffer, frameResources.StagingOffset, dataSize, dataOffset);
+        frameResources.BufferUploads.push_back({ buffer, frameResources.StagingOffset, dataSize, dataOffset });
         frameResources.StagingOffset += dataSize;
     }
 
@@ -290,43 +320,9 @@ namespace R2::VK
     {
         PerFrameResources& frameResources = perFrameResources[frameIndex];
         std::unique_lock buLock{frameResources.BufferUploadMutex};
-        frameResources.BufferToTextureCopies.emplace_back(buffer, texture, bufferOffset, texture->GetNumMips());
+        frameResources.BufferToTextureCopies.push_back({ buffer, texture, bufferOffset, texture->GetNumMips() });
     }
 
-    struct TextureBlockInfo
-    {
-        uint8_t BlockWidth;
-        uint8_t BlockHeight;
-        uint8_t BytesPerBlock;
-    };
-
-    TextureBlockInfo getBlockInfo(TextureFormat format)
-    {
-        switch (format)
-        {
-        case TextureFormat::BC1_RGB_UNORM_BLOCK:
-        case TextureFormat::BC1_RGB_SRGB_BLOCK:
-        case TextureFormat::BC1_RGBA_UNORM_BLOCK:
-        case TextureFormat::BC1_RGBA_SRGB_BLOCK:
-            return TextureBlockInfo{4, 4, 8};
-        case TextureFormat::BC3_SRGB_BLOCK:
-        case TextureFormat::BC3_UNORM_BLOCK:
-        case TextureFormat::BC5_UNORM_BLOCK:
-        case TextureFormat::BC5_SNORM_BLOCK:
-            return TextureBlockInfo{4, 4, 16};
-        default:
-            return TextureBlockInfo{1, 1, 1};
-        }
-    }
-
-    uint64_t calculateTextureByteSize(TextureFormat format, uint32_t width, uint32_t height)
-    {
-        TextureBlockInfo blockInfo = getBlockInfo(format);
-
-        uint32_t blocksX = (width + blockInfo.BlockWidth - 1) / blockInfo.BlockWidth;
-        uint32_t blocksY = (height + blockInfo.BlockHeight - 1) / blockInfo.BlockHeight;
-        return ((blockInfo.BytesPerBlock + 3) & ~ 3) * blocksX * blocksY;
-    }
 
     void Core::QueueTextureUpload(Texture* texture, void* data, uint64_t dataSize, int numMips)
     {
@@ -369,7 +365,7 @@ namespace R2::VK
                 int currWidth = mipScale(texture->GetWidth(), i);
                 int currHeight = mipScale(texture->GetWidth(), i);
                 VkBufferImageCopy vbic{};
-                vbic.imageSubresource.layerCount = texture->GetLayers();
+                vbic.imageSubresource.layerCount = texture->GetLayerCount();
                 vbic.imageSubresource.mipLevel = i;
                 vbic.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
                 vbic.imageExtent.width = currWidth;
@@ -381,7 +377,7 @@ namespace R2::VK
                                        texture->GetNativeHandle(),
                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &vbic);
 
-                offset += calculateTextureByteSize(texture->GetFormat(), currWidth, currHeight);
+                offset += CalculateTextureByteSize(texture->GetFormat(), currWidth, currHeight);
             }
 
             texture->Acquire(frameResources.UploadCommandBuffer, ImageLayout::ReadOnlyOptimal, AccessFlags::MemoryRead,
@@ -420,8 +416,8 @@ namespace R2::VK
 
         memcpy(frameResources.StagingMapped + uploadedOffset + requiredPadding, data, dataSize);
 
-        frameResources.BufferToTextureCopies.emplace_back(frameResources.StagingBuffer, texture,
-                                                          uploadedOffset + requiredPadding, mipsToUpload);
+        frameResources.BufferToTextureCopies.push_back({ frameResources.StagingBuffer, texture,
+                                                          uploadedOffset + requiredPadding, mipsToUpload });
         frameResources.StagingOffset += dataSize + requiredPadding;
     }
 
@@ -480,8 +476,10 @@ namespace R2::VK
         submitInfo.pWaitSemaphores = &frameResources.UploadSemaphore;
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitDstStageMask = &waitStage;
+#ifndef __ANDROID__
         submitInfo.pSignalSemaphores = &frameResources.Completion;
         submitInfo.signalSemaphoreCount = 1;
+#endif
 
         VKCHECK(vkQueueSubmit(handles.Queues.Graphics, 1, &submitInfo, frameResources.Fence));
         inFrame = false;
@@ -555,7 +553,7 @@ namespace R2::VK
             for (int i = 0; i < bttc.numMips; i++)
             {
                 VkBufferImageCopy vbic{};
-                vbic.imageSubresource.layerCount = bttc.Texture->GetLayers();
+                vbic.imageSubresource.layerCount = bttc.Texture->GetLayerCount();
                 vbic.imageSubresource.mipLevel = i;
                 vbic.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
                 vbic.imageExtent.width = mipScale(w, i);
@@ -567,7 +565,7 @@ namespace R2::VK
                                        bttc.Texture->GetNativeHandle(),
                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &vbic);
 
-                offset += calculateTextureByteSize(bttc.Texture->GetFormat(), mipScale(w, i), mipScale(h, i));
+                offset += CalculateTextureByteSize(bttc.Texture->GetFormat(), mipScale(w, i), mipScale(h, i));
             }
 
             bttc.Texture->Acquire(cb, ImageLayout::ReadOnlyOptimal, AccessFlags::MemoryRead,

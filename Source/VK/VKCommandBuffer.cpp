@@ -5,6 +5,7 @@
 #include <R2/VKSyncPrims.hpp>
 #include <R2/VKTexture.hpp>
 #include <R2/VKPipeline.hpp>
+#include <RenderPassCache.hpp>
 
 namespace R2::VK
 {
@@ -137,7 +138,7 @@ namespace R2::VK
         imageBarrier.dstStageMask = (VkPipelineStageFlags2)dstStage;
         imageBarrier.srcAccessMask = (VkAccessFlags2)srcAccess;
         imageBarrier.dstAccessMask = (VkAccessFlags2)dstAccess;
-        imageBarrier.subresourceRange = VkImageSubresourceRange { tex->getAspectFlags(), 0, (uint32_t)tex->GetNumMips(), 0, (uint32_t)tex->GetLayers() };
+        imageBarrier.subresourceRange = VkImageSubresourceRange { tex->getAspectFlags(), 0, (uint32_t)tex->GetNumMips(), 0, (uint32_t)tex->GetLayerCount() };
 
         VkDependencyInfo di { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
         di.imageMemoryBarrierCount = 1;
@@ -146,12 +147,12 @@ namespace R2::VK
         vkCmdPipelineBarrier2(cb, &di);
     }
 
-    VkOffset3D convertOffset(BlitOffset offset)
+    VkOffset3D convertOffset(Offset3D offset)
     {
         return VkOffset3D { offset.X, offset.Y, offset.Z };
     }
 
-    VkExtent3D convertExtent(BlitExtent extent)
+    VkExtent3D convertExtent(Extent3D extent)
     {
         return VkExtent3D { extent.X, extent.Y, extent.Z };
     }
@@ -235,6 +236,26 @@ namespace R2::VK
         );
     }
 
+    void CommandBuffer::TextureCopyToBuffer(Texture* source, Buffer* destination, TextureToBufferCopy tbc)
+    {
+        source->Acquire(cb, ImageLayout::TransferSrcOptimal, AccessFlags::TransferRead, PipelineStageFlags::Transfer);
+        VkBufferImageCopy bic{};
+        bic.imageSubresource.baseArrayLayer = tbc.textureRange.LayerStart;
+        bic.imageSubresource.layerCount = tbc.textureRange.LayerCount;
+        bic.imageSubresource.mipLevel = tbc.textureRange.MipLevel;
+        bic.imageSubresource.aspectMask = source->getAspectFlags();
+        bic.imageOffset = convertOffset(tbc.textureOffset);
+        bic.imageExtent = convertExtent(tbc.textureExtent);
+
+        vkCmdCopyImageToBuffer(
+            cb,
+            source->GetNativeHandle(),
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            destination->GetNativeHandle(),
+            1, &bic
+        );
+    }
+
     VkCommandBuffer CommandBuffer::GetNativeHandle()
     {
         return cb;
@@ -250,6 +271,25 @@ namespace R2::VK
         vkCmdFillBuffer(cb, buffer->GetNativeHandle(), offset, size, data);
     }
 
+    void CommandBuffer::CopyBufferToTexture(Buffer* buffer, Texture* texture, BufferTextureCopy btc)
+    {
+        texture->Acquire(*this, ImageLayout::TransferDstOptimal, AccessFlags::TransferWrite, PipelineStageFlags::Transfer);
+        VkBufferImageCopy bic{};
+        bic.bufferOffset = btc.bufferOffset;
+        bic.imageSubresource = VkImageSubresourceLayers
+        {
+            .aspectMask = texture->getAspectFlags(),
+            .mipLevel = btc.textureRange.MipLevel,
+            .baseArrayLayer = btc.textureRange.LayerStart,
+            .layerCount = btc.textureRange.LayerCount
+        };
+        bic.imageOffset = convertOffset(btc.textureOffset);
+        bic.imageExtent = convertExtent(btc.textureExtent);
+        
+        vkCmdCopyBufferToImage(cb, buffer->GetNativeHandle(), texture->GetNativeHandle(),
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bic);
+    }
+
     void CommandBuffer::SetEvent(Event *evt)
     {
         vkCmdSetEvent(cb, evt->GetNativeHandle(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
@@ -262,6 +302,10 @@ namespace R2::VK
 
     void CommandBuffer::EndRendering()
     {
+#ifndef R2_USE_RENDERPASS_FALLBACK
         vkCmdEndRendering(cb);
+#else
+        vkCmdEndRenderPass(cb);
+#endif
     }
 }

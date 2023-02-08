@@ -1,9 +1,14 @@
+#include <cassert>
 #include <R2/VKRenderPass.hpp>
 #include <R2/VKCommandBuffer.hpp>
 #include <R2/VKEnums.hpp>
 #include <R2/VKTexture.hpp>
 #include <volk.h>
 #include <malloc.h>
+#include <RenderPassCache.hpp>
+#ifdef __linux__
+#include <alloca.h>
+#endif
 
 namespace R2::VK
 {
@@ -102,6 +107,7 @@ namespace R2::VK
         if (depthAttachment.Texture)
             depthAttachment.Texture->Acquire(cb, ImageLayout::AttachmentOptimal, AccessFlags::DepthStencilAttachmentReadWrite, PipelineStageFlags::LateFragmentTests);
 
+#ifndef R2_USE_RENDERPASS_FALLBACK
         VkRenderingInfo renderInfo{ VK_STRUCTURE_TYPE_RENDERING_INFO };
         renderInfo.renderArea = VkRect2D{ { 0, 0 }, { width, height }, };
         renderInfo.layerCount = 1;
@@ -141,10 +147,117 @@ namespace R2::VK
         renderInfo.pColorAttachments = colorAttachmentInfos;
 
         vkCmdBeginRendering(cb.GetNativeHandle(), &renderInfo);
+#else
+        // For now we only support a max of 1 color attachment
+        assert(numColorAttachments <= 1);
+        
+        const AttachmentInfo& colorAttachment = colorAttachments[0];
+        
+        RenderPassKey key
+        {
+            .viewMask = viewMask
+        };
+
+        if (depthAttachment.Texture)
+        {
+            key.depthAttachment = RenderPassAttachment
+            {
+                .format = (VkFormat)depthAttachment.Texture->GetFormat(),
+                .loadOp = convertLoadOp(depthAttachment.LoadOp),
+                .storeOp = convertStoreOp(depthAttachment.StoreOp)
+            };
+            key.useDepth = true;
+        }
+
+        if (numColorAttachments > 0)
+        {
+            key.colorAttachment = RenderPassAttachment
+            {
+                .format = (VkFormat)colorAttachment.Texture->GetFormat(),
+                .loadOp = convertLoadOp(colorAttachment.LoadOp),
+                .storeOp = convertStoreOp(colorAttachment.StoreOp)
+            };
+            key.useColor = true;
+        }
+        
+        VkRenderPass renderPass = g_renderPassCache->GetPass(key);
+        FramebufferKey framebufferKey
+        {
+            .width = width,
+            .height = height,
+            .renderPass = renderPass,
+            .numTextures = 0,
+            .layerCount = 1
+        };
+        VkImageView attachmentViews[2];
+        VkClearValue clearVals[2];
+        
+        if (depthAttachment.Texture)
+        {
+            framebufferKey.textureFormats[framebufferKey.numTextures] =
+                (VkFormat)depthAttachment.Texture->GetFormat();
+            
+            framebufferKey.textureUsages[framebufferKey.numTextures] =
+                    depthAttachment.Texture->GetUsageFlags();
+            
+            framebufferKey.textureFlags[framebufferKey.numTextures] =
+                    depthAttachment.Texture->GetImageFlags();
+            
+            attachmentViews[framebufferKey.numTextures] = depthAttachment.Texture->GetView();
+            framebufferKey.layerCount = depthAttachment.Texture->GetLayerCount();
+            clearVals[framebufferKey.numTextures].depthStencil.depth = depthAttachment.ClearValue.DepthStencil.Depth;
+            framebufferKey.numTextures++;
+        }
+        
+        if (numColorAttachments > 0)
+        {
+            framebufferKey.textureFormats[framebufferKey.numTextures] =
+                (VkFormat)colorAttachment.Texture->GetFormat();
+            
+            framebufferKey.textureUsages[framebufferKey.numTextures] =
+                    colorAttachment.Texture->GetUsageFlags();
+            
+            framebufferKey.textureFlags[framebufferKey.numTextures] =
+                    colorAttachment.Texture->GetImageFlags();
+            
+            attachmentViews[framebufferKey.numTextures] = colorAttachment.Texture->GetView();
+            framebufferKey.layerCount = colorAttachment.Texture->GetLayerCount();
+            for (int j = 0; j < 4; j++)
+                clearVals[framebufferKey.numTextures].color.uint32[j] = colorAttachment.ClearValue.Color.Uint32[j];
+
+            framebufferKey.numTextures++;
+        }
+
+        VkFramebuffer framebuffer = g_renderPassCache->GetFramebuffer(framebufferKey);
+
+        VkRenderPassAttachmentBeginInfo attachBeginInfo
+        {
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_ATTACHMENT_BEGIN_INFO,
+            .attachmentCount = framebufferKey.numTextures,
+            .pAttachments = attachmentViews
+        };
+
+        VkRenderPassBeginInfo beginInfo
+        {
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .pNext = &attachBeginInfo,
+            .renderPass = renderPass,
+            .framebuffer = framebuffer,
+            .renderArea = VkRect2D { 0, 0, width, height },
+            .clearValueCount = framebufferKey.numTextures,
+            .pClearValues = clearVals
+        };
+
+        vkCmdBeginRenderPass(cb.GetNativeHandle(), &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+#endif
     }
 
     void RenderPass::End(CommandBuffer cb)
     {
+#ifndef R2_USE_RENDERPASS_FALLBACK
         vkCmdEndRendering(cb.GetNativeHandle());
+#else
+        vkCmdEndRenderPass(cb.GetNativeHandle());
+#endif
     }
 }

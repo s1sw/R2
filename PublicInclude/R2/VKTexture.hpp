@@ -357,6 +357,16 @@ namespace R2::VK
         AttachmentOptimal = 1000314001,
         PresentSrc = 1000001002
     };
+    
+    struct TextureBlockInfo
+    {
+        uint8_t BlockWidth;
+        uint8_t BlockHeight;
+        uint8_t BytesPerBlock;
+    };
+
+    TextureBlockInfo GetTextureBlockInfo(TextureFormat format);
+    uint64_t CalculateTextureByteSize(TextureFormat format, uint32_t width, uint32_t height);
 
     struct TextureCreateInfo
     {
@@ -372,6 +382,8 @@ namespace R2::VK
             tci.Dimension = TextureDimension::Dim2D;
             tci.Samples = 1;
             tci.IsRenderTarget = false;
+            tci.CanSample = true;
+            tci.CanTransfer = true;
 
             return tci;
         }
@@ -380,6 +392,7 @@ namespace R2::VK
         {
             TextureCreateInfo tci = Texture2D(format, width, height);
             tci.IsRenderTarget = true;
+            tci.CanSample = false;
 
             return tci;
         }
@@ -396,13 +409,16 @@ namespace R2::VK
         TextureDimension Dimension;
         int Samples;
         bool CanUseAsStorage = true;
+        bool IsTransient = false;
+        bool CanSample = true;
+        bool CanTransfer = true;
     };
 
     class Texture
     {
     public:
         Texture(Core* core, const TextureCreateInfo& createInfo);
-        Texture(Core* core, VkImage image, ImageLayout layout, const TextureCreateInfo& createInfo);
+        Texture(Core* core, VkImage image, ImageLayout layout, const TextureCreateInfo& createInfo, uint32_t usageFlags);
         VkImage GetNativeHandle();
         VkImage ReleaseHandle();
         VkImageView GetView();
@@ -414,6 +430,8 @@ namespace R2::VK
         int GetNumMips();
         int GetSamples();
         TextureFormat GetFormat();
+        uint32_t GetUsageFlags();
+        uint32_t GetImageFlags();
 
         void Acquire(CommandBuffer cb, ImageLayout layout, AccessFlags access, PipelineStageFlags stage);
         ~Texture();
@@ -426,6 +444,8 @@ namespace R2::VK
         TextureFormat format;
         TextureDimension dimension;
         int samples;
+        uint32_t usageFlags;
+        uint32_t imageFlags;
 
         void WriteLayoutTransition(CommandBuffer cb, ImageLayout layout);
         void WriteLayoutTransition(CommandBuffer cb, ImageLayout oldLayout, ImageLayout newLayout);
