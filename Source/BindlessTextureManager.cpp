@@ -28,6 +28,12 @@ namespace R2
             .MagFilter(VK::Filter::Linear)
             .MipmapMode(VK::SamplerMipmapMode::Linear)
             .Build();
+
+        for (int i = 0; i < NUM_TEXTURES; i++)
+        {
+            presentTextures[i] = false;
+            useView[i] = false;
+        }
     }
 
     BindlessTextureManager::~BindlessTextureManager()
@@ -65,6 +71,16 @@ namespace R2
         descriptorsNeedUpdate = true;
     }
 
+    void BindlessTextureManager::SetViewAt(uint32_t handle, VK::TextureView* texView)
+    {
+        std::lock_guard lock{texturesMutex};
+        assert(presentTextures[handle]);
+        textureViews[handle] = texView;
+        useView[handle] = texView != nullptr;
+        descriptorsNeedUpdate = true;
+    }
+
+
     VK::Texture* BindlessTextureManager::GetTextureAt(uint32_t handle)
     {
         std::lock_guard lock{texturesMutex};
@@ -77,6 +93,8 @@ namespace R2
         std::lock_guard lock{texturesMutex};
         textures[handle] = nullptr;
         presentTextures[handle] = false;
+        useView[handle] = false;
+        textureViews[handle] = nullptr;
         descriptorsNeedUpdate = true;
     }
 
@@ -100,7 +118,14 @@ namespace R2
             {
                 if (!presentTextures[i]) continue;
 
-                dsu.AddTexture(0, i, VK::DescriptorType::CombinedImageSampler, textures[i], sampler);
+                if (!useView[i])
+                {
+                    dsu.AddTexture(0, i, VK::DescriptorType::CombinedImageSampler, textures[i], sampler);
+                }
+                else
+                {
+                    dsu.AddTextureView(0, i, VK::DescriptorType::CombinedImageSampler, textureViews[i], sampler);
+                }
             }
 
             dsu.Update();
