@@ -14,32 +14,32 @@ namespace R2::VK
 #ifdef DQ_TRACK_SOURCE
     void DeletionQueue::QueueObjectDeletion(void* object, uint32_t type, int line, const char* file)
     {
-        objectDeletions.emplace_back(object, type, line, file);
+        objectDeletions.push_back({ object, type, line, file });
     }
 
     void DeletionQueue::QueueMemoryFree(VmaAllocation allocation, int line, const char* file)
     {
-        memoryFrees.emplace_back(allocation, line, file);
+        memoryFrees.push_back({ allocation, line, file });
     }
 
     void DeletionQueue::QueueDescriptorSetFree(VkDescriptorPool pool, VkDescriptorSet set, int line, const char* file)
     {
-        dsFrees.emplace_back(pool, set, line, file);
+        dsFrees.push_back({ pool, set, line, file });
     }
 #else
     void DeletionQueue::QueueObjectDeletion(void* object, uint32_t type)
     {
-        objectDeletions.emplace_back(object, type);
+        objectDeletions.push_back({ object, type });
     }
 
     void DeletionQueue::QueueMemoryFree(VmaAllocation allocation)
     {
-        memoryFrees.emplace_back(allocation);
+        memoryFrees.push_back({ allocation });
     }
 
     void DeletionQueue::QueueDescriptorSetFree(VkDescriptorPool pool, VkDescriptorSet set)
     {
-        dsFrees.emplace_back(pool, set);
+        dsFrees.push_back({ pool, set });
     }
 #endif
 
