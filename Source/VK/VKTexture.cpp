@@ -257,7 +257,7 @@ namespace R2::VK
         return numMips;
     }
 
-    int Texture::GetLayers()
+    int Texture::GetLayerCount()
     {
         return layers;
     }

@@ -410,7 +410,7 @@ namespace R2::VK
 
         int GetWidth();
         int GetHeight();
-        int GetLayers();
+        int GetLayerCount();
         int GetNumMips();
         int GetSamples();
         TextureFormat GetFormat();
