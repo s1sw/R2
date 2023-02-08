@@ -4,6 +4,7 @@
 
 namespace R2::VK
 {
+#ifdef _WIN32
 	void* vulkanAlloc(void* userData, size_t size, size_t alignment, VkSystemAllocationScope scope)
 	{
 		return _aligned_malloc(size, alignment);
@@ -27,4 +28,11 @@ namespace R2::VK
 		callbacks->pfnReallocation = vulkanRealloc;
 		handles.AllocCallbacks = callbacks;
 	}
+#else
+	void Core::setAllocCallbacks()
+	{
+		// TODO
+		handles.AllocCallbacks = nullptr;
+	}
+#endif
 }
