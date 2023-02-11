@@ -6,6 +6,9 @@
 #include <R2/VKUtil.hpp>
 #include <volk.h>
 #include <vk_mem_alloc.h>
+#ifndef __ANDROID__
+#define USE_SYNC_2
+#endif
 
 namespace R2::VK
 {

@@ -8,6 +8,9 @@
 #include <vk_mem_alloc.h>
 #include <assert.h>
 #include <math.h>
+#ifndef __ANDROID__
+#define USE_SYNC_2
+#endif
 
 namespace R2::VK
 {
