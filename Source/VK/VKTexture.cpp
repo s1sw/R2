@@ -37,6 +37,9 @@ namespace R2::VK
             return TextureBlockInfo{1, 1, 8};
         case TextureFormat::R32G32B32A32_SFLOAT:
             return TextureBlockInfo{1, 1, 16}; // chonky!
+        case TextureFormat::R8G8B8A8_SRGB:
+        case TextureFormat::R8G8B8A8_UNORM:
+            return TextureBlockInfo{1, 1, 4};
         default:
             return TextureBlockInfo{1, 1, 1};
         }
