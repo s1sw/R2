@@ -48,7 +48,7 @@ namespace R2::VK
 
         uint32_t blocksX = (width + blockInfo.BlockWidth - 1) / blockInfo.BlockWidth;
         uint32_t blocksY = (height + blockInfo.BlockHeight - 1) / blockInfo.BlockHeight;
-        return ((blockInfo.BytesPerBlock + 3) & ~ 3) * blocksX * blocksY;
+        return blockInfo.BytesPerBlock * blocksX * blocksY;
     }
     
     VkImageType convertType(TextureDimension dim)
