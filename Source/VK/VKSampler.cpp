@@ -57,6 +57,18 @@ namespace R2::VK
         return *this;
     }
 
+    SamplerBuilder& SamplerBuilder::EnableCompare(bool enableCompare)
+    {
+        ci.compareEnable = enableCompare;
+        return *this;
+    }
+
+    SamplerBuilder& SamplerBuilder::CompareOp(VK::CompareOp compareOp)
+    {
+        ci.compareOp = compareOp;
+        return *this;
+    }
+
     Sampler* SamplerBuilder::Build()
     {
         VkSamplerCreateInfo sci{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
@@ -65,7 +77,7 @@ namespace R2::VK
         sci.minLod = 0.0f;
         sci.maxLod = VK_LOD_CLAMP_NONE;
         sci.anisotropyEnable = true;
-        sci.maxAnisotropy = 16.0f;
+        sci.maxAnisotropy = 8.0f;
 
         VkSampler vsamp;
         VKCHECK(vkCreateSampler(core->GetHandles()->Device, &sci, core->GetHandles()->AllocCallbacks, &vsamp));

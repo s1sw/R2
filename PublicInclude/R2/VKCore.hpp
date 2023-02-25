@@ -27,7 +27,6 @@ typedef struct VkAllocationCallbacks VkAllocationCallbacks;
 
 namespace R2::VK
 {
-#define VKCHECK(res) if (res != 0) { printf("RESULT: %i (file %s, line %i)", res, __FILE__, __LINE__); abort(); }
 	struct Queues
 	{
 		uint32_t GraphicsFamilyIndex;
@@ -85,6 +84,10 @@ namespace R2::VK
 		bool VariableRateShading;
 	};
 
+	void onFailedVkCheck(int res, const char* file, int line);
+
+#define VKCHECK(res) { if (res != 0) { R2::VK::onFailedVkCheck(res, __FILE__, __LINE__); } }
+
 	class Core
 	{
 	public:
@@ -109,6 +112,7 @@ namespace R2::VK
 
 		void BeginFrame();
 		CommandBuffer GetFrameCommandBuffer();
+		CommandBuffer GetFrameCommandBuffer(int index);
 		VkSemaphore GetFrameCompletionSemaphore();
 		void QueueBufferUpload(Buffer* buffer, const void* data, uint64_t dataSize, uint64_t dataOffset);
 		void QueueBufferToTextureCopy(Buffer* buffer, Texture* texture, uint64_t bufferOffset = 0);

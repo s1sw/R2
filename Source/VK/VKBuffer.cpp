@@ -6,6 +6,9 @@
 #include <R2/VKUtil.hpp>
 #include <volk.h>
 #include <vk_mem_alloc.h>
+#ifndef __ANDROID__
+#define USE_SYNC_2
+#endif
 
 namespace R2::VK
 {
@@ -117,8 +120,13 @@ namespace R2::VK
         vkCmdCopyBuffer(cb, buffer, other->buffer, 1, &bufferCopy);
     }
 
+    // implemented in VKTexture.cpp
+    extern VkAccessFlags getOldAccessFlags(AccessFlags access);
+    extern VkPipelineStageFlags getOldPipelineStageFlags(PipelineStageFlags flags);
+
     void Buffer::Acquire(CommandBuffer cb, AccessFlags access)
     {
+#ifdef USE_SYNC_2
         VkBufferMemoryBarrier2 bmb { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
         bmb.buffer = buffer;
         bmb.offset = 0;
@@ -136,10 +144,32 @@ namespace R2::VK
         lastPipelineStage = getPipelineStage(access);
 
         vkCmdPipelineBarrier2(cb.GetNativeHandle(), &di);
+#else
+        VkBufferMemoryBarrier bmb{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+        bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        bmb.srcAccessMask = getOldAccessFlags(lastAccess);
+        bmb.dstAccessMask = getOldAccessFlags(access);
+        bmb.size = VK_WHOLE_SIZE;
+        bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        bmb.buffer = buffer;
+
+        vkCmdPipelineBarrier(
+                cb.GetNativeHandle(),
+                getOldPipelineStageFlags(lastPipelineStage),
+                getOldPipelineStageFlags(lastPipelineStage),
+                VK_DEPENDENCY_BY_REGION_BIT,
+                0, nullptr,
+                1, &bmb,
+                0, nullptr
+        );
+#endif
     }
 
     void Buffer::Acquire(CommandBuffer cb, AccessFlags access, PipelineStageFlags stage)
     {
+#ifdef USE_SYNC_2
         VkBufferMemoryBarrier2 bmb { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
         bmb.buffer = buffer;
         bmb.offset = 0;
@@ -157,6 +187,27 @@ namespace R2::VK
         lastPipelineStage = stage;
 
         vkCmdPipelineBarrier2(cb.GetNativeHandle(), &di);
+#else
+        VkBufferMemoryBarrier bmb{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+        bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        bmb.srcAccessMask = getOldAccessFlags(lastAccess);
+        bmb.dstAccessMask = getOldAccessFlags(access);
+        bmb.size = VK_WHOLE_SIZE;
+        bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        bmb.buffer = buffer;
+
+        vkCmdPipelineBarrier(
+                cb.GetNativeHandle(),
+                getOldPipelineStageFlags(lastPipelineStage),
+                getOldPipelineStageFlags(stage),
+                VK_DEPENDENCY_BY_REGION_BIT,
+                0, nullptr,
+                1, &bmb,
+                0, nullptr
+        );
+#endif
     }
 
     Buffer::~Buffer()

@@ -4,6 +4,7 @@
 #include <R2/VKDescriptorSet.hpp>
 #include <R2/VKTexture.hpp>
 #include <volk.h>
+#include <RenderPassCache.hpp>
 
 namespace R2::VK
 {
@@ -114,7 +115,7 @@ namespace R2::VK
 
     PipelineBuilder& PipelineBuilder::AddShader(ShaderStage stage, ShaderModule& mod)
     {
-        shaderStages.emplace_back(mod, stage);
+        shaderStages.push_back({ mod, stage });
         return *this;
     }
 
@@ -222,13 +223,6 @@ namespace R2::VK
 
     Pipeline* PipelineBuilder::Build()
     {
-        // Rendering state
-        VkPipelineRenderingCreateInfo renderingCI{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-        renderingCI.colorAttachmentCount = (uint32_t)attachmentFormats.size();
-        if (attachmentFormats.size() > 0)
-            renderingCI.pColorAttachmentFormats = reinterpret_cast<VkFormat*>(&attachmentFormats[0]);
-        renderingCI.depthAttachmentFormat = static_cast<VkFormat>(depthFormat);
-        renderingCI.viewMask = viewMask;
 
         // Convert vertex bindings
         std::vector<VkVertexInputBindingDescription> bindingDescs;
@@ -352,7 +346,8 @@ namespace R2::VK
         std::vector<VkPipelineShaderStageCreateInfo> vkShaderStages;
         vkShaderStages.reserve(shaderStages.size());
 
-        for (const ShaderStageCreateInfo& stage : shaderStages) {
+        for (const ShaderStageCreateInfo& stage : shaderStages)
+        {
             VkPipelineShaderStageCreateInfo vkStage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
             vkStage.stage = convertShaderStage(stage.stage);
             vkStage.module = stage.module.GetNativeHandle();
@@ -372,8 +367,47 @@ namespace R2::VK
         pci.pDynamicState = &dynamicStateCI;
         pci.pMultisampleState = &multisampleStateCI;
         pci.pViewportState = &viewportStateCI;
-        pci.pNext = &renderingCI;
         pci.layout = layout;
+
+#ifndef R2_USE_RENDERPASS_FALLBACK
+        // Rendering state
+        VkPipelineRenderingCreateInfo renderingCI{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+        renderingCI.colorAttachmentCount = (uint32_t)attachmentFormats.size();
+        if (attachmentFormats.size() > 0)
+            renderingCI.pColorAttachmentFormats = reinterpret_cast<VkFormat*>(&attachmentFormats[0]);
+        renderingCI.depthAttachmentFormat = static_cast<VkFormat>(depthFormat);
+        renderingCI.viewMask = viewMask;
+        pci.pNext = &renderingCI;
+#else
+        RenderPassKey rpKey
+        {
+            .viewMask = viewMask
+        };
+        
+        if (depthFormat != TextureFormat::UNDEFINED)
+        {
+            rpKey.depthAttachment = RenderPassAttachment
+            {
+                .format = (VkFormat)depthFormat,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE
+            };
+            rpKey.useDepth = true;
+        }
+
+        if (!attachmentFormats.empty())
+        {
+            rpKey.colorAttachment = RenderPassAttachment
+            {
+                .format = (VkFormat)attachmentFormats[0],
+                .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE
+            };
+            rpKey.useColor = true;
+        }
+
+        pci.renderPass = g_renderPassCache->GetPass(rpKey);
+#endif
 
         VkPipeline pipeline;
         VKCHECK(vkCreateGraphicsPipelines(core->GetHandles()->Device, nullptr, 1, &pci, core->GetHandles()->AllocCallbacks, &pipeline));

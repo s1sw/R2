@@ -58,7 +58,7 @@ namespace R2::VK
 
     inline AccessFlags operator|(const AccessFlags& a, const AccessFlags& b)
     {
-        return static_cast<AccessFlags>((unsigned int)a | (unsigned int)b);
+        return static_cast<AccessFlags>((uint64_t)a | (uint64_t)b);
     }
 
     enum class PipelineStageFlags : uint64_t
@@ -93,7 +93,7 @@ namespace R2::VK
 
     inline PipelineStageFlags operator|(const PipelineStageFlags& a, const PipelineStageFlags& b)
     {
-        return static_cast<PipelineStageFlags>((unsigned int)a | (unsigned int)b);
+        return static_cast<PipelineStageFlags>((uint64_t)a | (uint64_t)b);
     }
 
     inline PipelineStageFlags operator|=(PipelineStageFlags& a, const PipelineStageFlags& b)

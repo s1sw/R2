@@ -10,6 +10,7 @@ namespace R2
     {
         class Core;
         class Texture;
+        class TextureView;
         class DescriptorSet;
         class DescriptorSetLayout;
         class Sampler;
@@ -21,7 +22,9 @@ namespace R2
 
         std::mutex texturesMutex;
         std::array<VK::Texture*, NUM_TEXTURES> textures;
+        std::array<VK::TextureView*, NUM_TEXTURES> textureViews;
         std::bitset<NUM_TEXTURES> presentTextures;
+        std::bitset<NUM_TEXTURES> useView;
 
         VK::DescriptorSet* textureDescriptors;
         VK::DescriptorSetLayout* textureDescriptorSetLayout;
@@ -36,6 +39,7 @@ namespace R2
 
         uint32_t AllocateTextureHandle(VK::Texture* tex);
         void SetTextureAt(uint32_t handle, VK::Texture* tex);
+        void SetViewAt(uint32_t handle, VK::TextureView* texView);
         VK::Texture* GetTextureAt(uint32_t handle);
         void FreeTextureHandle(uint32_t handle);
 

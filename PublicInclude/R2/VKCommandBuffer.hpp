@@ -50,21 +50,21 @@ namespace R2::VK
         uint32_t Height;
     };
 
-    struct BlitSubtexture
+    struct SubtextureRange
     {
         uint32_t MipLevel;
         uint32_t LayerStart;
         uint32_t LayerCount;
     };
 
-    struct BlitOffset
+    struct Offset3D
     {
         int X;
         int Y;
         int Z;
     };
 
-    struct BlitExtent
+    struct Extent3D
     {
         uint32_t X;
         uint32_t Y;
@@ -73,19 +73,34 @@ namespace R2::VK
 
     struct TextureBlit
     {
-        BlitSubtexture Source;
-        BlitOffset SourceOffsets[2];
-        BlitSubtexture Destination;
-        BlitOffset DestinationOffsets[2];
+        SubtextureRange Source;
+        Offset3D SourceOffsets[2];
+        SubtextureRange Destination;
+        Offset3D DestinationOffsets[2];
     };
 
     struct TextureCopy
     {
-        BlitSubtexture Source;
-        BlitOffset SourceOffset;
-        BlitSubtexture Destination;
-        BlitOffset DestinationOffset;
-        BlitExtent Extent;
+        SubtextureRange Source;
+        Offset3D SourceOffset;
+        SubtextureRange Destination;
+        Offset3D DestinationOffset;
+        Extent3D Extent;
+    };
+
+    struct BufferTextureCopy
+    {
+        uint64_t bufferOffset;
+        SubtextureRange textureRange;
+        Offset3D textureOffset;
+        Extent3D textureExtent;
+    };
+
+    struct TextureToBufferCopy
+    {
+        SubtextureRange textureRange;
+        Offset3D textureOffset;
+        Extent3D textureExtent;
     };
 
     struct DrawIndexedIndirectCommand
@@ -137,9 +152,11 @@ namespace R2::VK
         void TextureBlit(Texture* source, Texture* destination, TextureBlit blitInfo);
         void TextureCopy(Texture* source, Texture* destination, TextureCopy copyInfo);
         void TextureCopyToBuffer(Texture* source, Buffer* destination);
+        void TextureCopyToBuffer(Texture* source, Buffer* destination, TextureToBufferCopy tbc);
 
         void UpdateBuffer(Buffer* buffer, uint64_t offset, uint64_t size, void* data);
         void FillBuffer(Buffer* buffer, uint64_t offset, uint64_t size, uint32_t data);
+        void CopyBufferToTexture(Buffer* buffer, Texture* texture, BufferTextureCopy btc);
 
         void SetEvent(Event* evt);
         void ResetEvent(Event* evt);

@@ -122,8 +122,17 @@ namespace R2::VK
 
     Texture* Swapchain::Acquire(Fence* fence)
     {
-        uint32_t imageIndex;
-        vkAcquireNextImageKHR(handles->Device, swapchain, UINT64_MAX, VK_NULL_HANDLE, fence->GetNativeHandle(), &imageIndex);
+        uint32_t imageIndex = ~0u;
+        VkResult res = vkAcquireNextImageKHR(handles->Device, swapchain, UINT64_MAX, VK_NULL_HANDLE, fence->GetNativeHandle(), &imageIndex);
+        if (res != VK_SUBOPTIMAL_KHR && res != VK_ERROR_OUT_OF_DATE_KHR)
+        {
+            VKCHECK(res);
+        }
+        else if (res == VK_ERROR_OUT_OF_DATE_KHR)
+        {
+            recreate();
+            return nullptr;
+        }
         acquiredImageIndex = imageIndex;
 
         return imageTextures[imageIndex];
@@ -152,11 +161,16 @@ namespace R2::VK
         createInfo.imageFormat = format.format;
         createInfo.imageColorSpace = format.colorSpace;
         createInfo.imageArrayLayers = 1;
-        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
         createInfo.queueFamilyIndexCount = 0;
-        createInfo.preTransform = surfaceCaps.currentTransform;
+#ifdef __ANDROID__
+        createInfo.preTransform = VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR;
+        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+#else
+        createInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
         createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+#endif
         createInfo.presentMode = vsyncEnabled ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
         createInfo.clipped = VK_FALSE;
         createInfo.surface = surface;
@@ -192,10 +206,11 @@ namespace R2::VK
 
         TextureCreateInfo swapTexInfo = TextureCreateInfo::Texture2D(
             static_cast<TextureFormat>(format.format), createInfo.imageExtent.width, createInfo.imageExtent.height);
+        swapTexInfo.IsRenderTarget = true;
 
         for (VkImage image : images)
         {
-            imageTextures.push_back(new Texture(renderer, image, ImageLayout::Undefined, swapTexInfo));
+            imageTextures.push_back(new Texture(renderer, image, ImageLayout::Undefined, swapTexInfo, createInfo.imageUsage));
         }
 
         this->width = createInfo.imageExtent.width;

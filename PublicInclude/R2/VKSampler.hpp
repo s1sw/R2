@@ -62,6 +62,8 @@ namespace R2::VK
         SamplerBuilder& MinFilter(Filter filt);
         SamplerBuilder& MipmapMode(SamplerMipmapMode mode);
         SamplerBuilder& AddressMode(SamplerAddressMode mode);
+        SamplerBuilder& EnableCompare(bool enableCompare);
+        SamplerBuilder& CompareOp(CompareOp compareOp);
 
         Sampler* Build();
     private:
@@ -77,7 +79,7 @@ namespace R2::VK
             Bool32                anisotropyEnable;
             float                 maxAnisotropy;
             Bool32                compareEnable;
-            CompareOp             compareOp;
+            VK::CompareOp         compareOp;
             float                 minLod;
             float                 maxLod;
             BorderColor           borderColor;

@@ -39,6 +39,7 @@ namespace R2::VK
 
     void TimestampPool::WriteTimestamp(CommandBuffer& cb, int index)
     {
-        vkCmdWriteTimestamp2(cb.GetNativeHandle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, index);
+        //vkCmdWriteTimestamp2(cb.GetNativeHandle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, index);
+        vkCmdWriteTimestamp(cb.GetNativeHandle(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPool, index);
     }
 }

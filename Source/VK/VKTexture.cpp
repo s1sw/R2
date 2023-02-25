@@ -8,9 +8,52 @@
 #include <vk_mem_alloc.h>
 #include <assert.h>
 #include <math.h>
+#ifndef __ANDROID__
+#define USE_SYNC_2
+#endif
 
 namespace R2::VK
 {
+    TextureBlockInfo GetTextureBlockInfo(TextureFormat format)
+    {
+        switch (format)
+        {
+        case TextureFormat::BC1_RGB_UNORM_BLOCK:
+        case TextureFormat::BC1_RGB_SRGB_BLOCK:
+        case TextureFormat::BC1_RGBA_UNORM_BLOCK:
+        case TextureFormat::BC1_RGBA_SRGB_BLOCK:
+            return TextureBlockInfo{4, 4, 8};
+        case TextureFormat::BC3_SRGB_BLOCK:
+        case TextureFormat::BC3_UNORM_BLOCK:
+        case TextureFormat::BC5_UNORM_BLOCK:
+        case TextureFormat::BC5_SNORM_BLOCK:
+            return TextureBlockInfo{4, 4, 16};
+        case TextureFormat::ASTC_6x6_SRGB_BLOCK:
+        case TextureFormat::ASTC_6x6_UNORM_BLOCK:
+            return TextureBlockInfo{6, 6, 16};
+        case TextureFormat::B10G11R11_UFLOAT_PACK32:
+            return TextureBlockInfo{1, 1, 4};
+        case TextureFormat::R16G16B16A16_SFLOAT:
+            return TextureBlockInfo{1, 1, 8};
+        case TextureFormat::R32G32B32A32_SFLOAT:
+            return TextureBlockInfo{1, 1, 16}; // chonky!
+        case TextureFormat::R8G8B8A8_SRGB:
+        case TextureFormat::R8G8B8A8_UNORM:
+            return TextureBlockInfo{1, 1, 4};
+        default:
+            return TextureBlockInfo{1, 1, 1};
+        }
+    }
+
+    uint64_t CalculateTextureByteSize(TextureFormat format, uint32_t width, uint32_t height)
+    {
+        TextureBlockInfo blockInfo = GetTextureBlockInfo(format);
+
+        uint32_t blocksX = (width + blockInfo.BlockWidth - 1) / blockInfo.BlockWidth;
+        uint32_t blocksY = (height + blockInfo.BlockHeight - 1) / blockInfo.BlockHeight;
+        return blockInfo.BytesPerBlock * blocksX * blocksY;
+    }
+    
     VkImageType convertType(TextureDimension dim)
     {
         switch (dim)
@@ -67,6 +110,7 @@ namespace R2::VK
         switch (format)
         {
         case TextureFormat::D32_SFLOAT:
+        case TextureFormat::D16_UNORM:
             return true;
         }
 
@@ -103,15 +147,29 @@ namespace R2::VK
         ici.format = static_cast<VkFormat>(createInfo.Format);
         ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         ici.tiling = VK_IMAGE_TILING_OPTIMAL;
-        ici.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        ici.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
-        
-        if (supportsStorage(core->GetHandles()->PhysicalDevice, createInfo.Format))
+
+        if (createInfo.CanSample)
+        {
+            ici.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+        }
+
+        if (createInfo.CanTransfer)
+        {
+            ici.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        }
+
+        if (createInfo.IsTransient)
+        {
+            ici.usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+        }
+
+        if (supportsStorage(core->GetHandles()->PhysicalDevice, createInfo.Format) && createInfo.CanUseAsStorage)
             ici.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 
         bool forceSRGBView = false;
         if (createInfo.Format == TextureFormat::R8G8B8A8_SRGB && createInfo.CanUseAsStorage)
         {
+            ici.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
             ici.flags |= VK_IMAGE_CREATE_EXTENDED_USAGE_BIT;
             ici.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
             ici.format = (VkFormat)TextureFormat::R8G8B8A8_UNORM;
@@ -130,12 +188,19 @@ namespace R2::VK
             }
         }
 
+        usageFlags = ici.usage;
+        imageFlags = ici.flags;
+
         ici.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         const Handles* handles = core->GetHandles();
 
         VmaAllocationCreateInfo vaci{};
+#ifdef __ANDROID__
+        vaci.usage = createInfo.IsTransient ? VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED : VMA_MEMORY_USAGE_AUTO;
+#else
         vaci.usage = VMA_MEMORY_USAGE_AUTO;
+#endif
         VKCHECK(vmaCreateImage(handles->Allocator, &ici, &vaci, &image, &allocation, nullptr));
 
         // Now copy everything...
@@ -147,7 +212,6 @@ namespace R2::VK
         format = createInfo.Format;
         dimension = createInfo.Dimension;
         samples = createInfo.Samples;
-
 
         VkImageViewCreateInfo ivci{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         ivci.image = image;
@@ -169,18 +233,21 @@ namespace R2::VK
         if (forceSRGBView)
         {
             ivci.format = VK_FORMAT_R8G8B8A8_SRGB;
+            usageFlags = usageCI.usage;
         }
 
         VKCHECK(vkCreateImageView(handles->Device, &ivci, handles->AllocCallbacks, &imageView));
     }
 
-    Texture::Texture(Core* core, VkImage image, ImageLayout layout, const TextureCreateInfo& createInfo)
+    Texture::Texture(Core* core, VkImage image, ImageLayout layout, const TextureCreateInfo& createInfo, uint32_t usageFlags)
         : image(image)
         , allocation(nullptr)
         , core(core)
         , lastLayout(layout)
         , lastAccess(AccessFlags::MemoryRead | AccessFlags::MemoryWrite)
         , lastPipelineStage(PipelineStageFlags::AllCommands)
+        , usageFlags(usageFlags)
+        , imageFlags(0)
     {
         // Now copy everything...
         width = createInfo.Width;
@@ -239,6 +306,13 @@ namespace R2::VK
             nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
             nameInfo.pNext = nullptr;
             vkSetDebugUtilsObjectNameEXT(core->GetHandles()->Device, &nameInfo);
+
+            nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+            nameInfo.pObjectName = name;
+            nameInfo.objectHandle = (uint64_t)imageView;
+            nameInfo.objectType = VK_OBJECT_TYPE_IMAGE_VIEW;
+            nameInfo.pNext = nullptr;
+            vkSetDebugUtilsObjectNameEXT(core->GetHandles()->Device, &nameInfo);
         }
     }
 
@@ -257,7 +331,7 @@ namespace R2::VK
         return numMips;
     }
 
-    int Texture::GetLayers()
+    int Texture::GetLayerCount()
     {
         return layers;
     }
@@ -272,8 +346,60 @@ namespace R2::VK
         return format;
     }
 
+    bool hasAccessBit(AccessFlags flags, AccessFlags test)
+    {
+        return ((uint64_t)flags & (uint64_t)test) == (uint64_t)test;
+    }
+
+    bool hasStageBit(PipelineStageFlags flags, PipelineStageFlags test)
+    {
+        return ((uint64_t)flags & (uint64_t)test) == (uint64_t)test;
+    }
+
+    VkAccessFlags getOldAccessFlags(AccessFlags access)
+    {
+        VkAccessFlags flagBits = 0;
+        flagBits = (VkAccessFlagBits)((uint64_t)(access) & 0xFFFFFFFF);
+
+        if (hasAccessBit(access, AccessFlags::ShaderSampledRead)  ||
+            hasAccessBit(access, AccessFlags::ShaderStorageRead))
+        {
+            flagBits |= VK_ACCESS_SHADER_READ_BIT;
+        }
+
+        if (hasAccessBit(access, AccessFlags::ShaderStorageWrite))
+        {
+            flagBits |= VK_ACCESS_SHADER_WRITE_BIT;
+        }
+
+        return flagBits;
+    }
+
+    VkPipelineStageFlags getOldPipelineStageFlags(PipelineStageFlags flags)
+    {
+        VkPipelineStageFlags oldFlags = 0;
+        oldFlags = (VkPipelineStageFlags)((uint64_t)(flags) & 0xFFFFFFFF);
+
+        if (hasStageBit(flags, PipelineStageFlags::Copy) ||
+            hasStageBit(flags, PipelineStageFlags::Resolve) ||
+            hasStageBit(flags, PipelineStageFlags::Blit) ||
+            hasStageBit(flags, PipelineStageFlags::Clear))
+        {
+            oldFlags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+        }
+
+        if (hasStageBit(flags, PipelineStageFlags::IndexInput) ||
+            hasStageBit(flags, PipelineStageFlags::VertexAttributeInput))
+        {
+            oldFlags |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+        }
+
+        return oldFlags;
+    }
+
     void Texture::Acquire(CommandBuffer cb, ImageLayout layout, AccessFlags access, PipelineStageFlags stage)
     {
+#ifdef USE_SYNC_2
         VkImageMemoryBarrier2 imb{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
         imb.oldLayout = (VkImageLayout)lastLayout;
         imb.newLayout = (VkImageLayout)layout;
@@ -293,6 +419,42 @@ namespace R2::VK
         depInfo.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
         vkCmdPipelineBarrier2(cb.GetNativeHandle(), &depInfo);
+#else
+        VkImageMemoryBarrier imb{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+
+        if (layout == ImageLayout::AttachmentOptimal)
+        {
+            VkImageAspectFlags aspectFlags = getAspectFlags();
+
+            if (aspectFlags == VK_IMAGE_ASPECT_DEPTH_BIT)
+            {
+                layout = ImageLayout::DepthStencilAttachmentOptimal;
+            }
+            else
+            {
+                layout = ImageLayout::ColorAttachmentOptimal;
+            }
+        }
+        
+        imb.oldLayout = (VkImageLayout)lastLayout;
+        imb.newLayout = (VkImageLayout)layout;
+        imb.subresourceRange = VkImageSubresourceRange{ getAspectFlags(), 0, (uint32_t)numMips, 0, (uint32_t)layers };
+        imb.image = image;
+        imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imb.srcAccessMask = getOldAccessFlags(lastAccess);
+        imb.dstAccessMask = getOldAccessFlags(access);
+
+        vkCmdPipelineBarrier(
+            cb.GetNativeHandle(),
+            getOldPipelineStageFlags(lastPipelineStage),
+            getOldPipelineStageFlags(stage),
+            VK_DEPENDENCY_BY_REGION_BIT,
+            0, nullptr,
+            0, nullptr,
+            1, &imb
+        );
+#endif
 
         lastLayout = layout;
         lastAccess = access;
@@ -301,6 +463,7 @@ namespace R2::VK
 
     void Texture::WriteLayoutTransition(CommandBuffer cb, ImageLayout layout)
     {
+#ifdef USE_SYNC_2
         VkImageMemoryBarrier2 imb{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
         imb.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         imb.newLayout = (VkImageLayout)layout;
@@ -317,10 +480,32 @@ namespace R2::VK
         depInfo.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
         vkCmdPipelineBarrier2(cb.GetNativeHandle(), &depInfo);
+#else
+        VkImageMemoryBarrier imb{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+        imb.oldLayout = (VkImageLayout)lastLayout;
+        imb.newLayout = (VkImageLayout)layout;
+        imb.subresourceRange = VkImageSubresourceRange{ getAspectFlags(), 0, (uint32_t)numMips, 0, (uint32_t)layers };
+        imb.image = image;
+        imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imb.srcAccessMask = getOldAccessFlags(lastAccess);
+        imb.dstAccessMask = getOldAccessFlags(lastAccess);
+
+        vkCmdPipelineBarrier(
+            cb.GetNativeHandle(),
+            getOldPipelineStageFlags(lastPipelineStage),
+            getOldPipelineStageFlags(lastPipelineStage),
+            VK_DEPENDENCY_BY_REGION_BIT,
+            0, nullptr,
+            0, nullptr,
+            1, &imb
+        );
+#endif
     }
 
     void Texture::WriteLayoutTransition(CommandBuffer cb, ImageLayout oldLayout, ImageLayout newLayout)
     {
+#ifdef USE_SYNC_2
         VkImageMemoryBarrier2 imb{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
         imb.oldLayout = (VkImageLayout)oldLayout;
         imb.newLayout = (VkImageLayout)newLayout;
@@ -337,6 +522,27 @@ namespace R2::VK
         depInfo.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
         vkCmdPipelineBarrier2(cb.GetNativeHandle(), &depInfo);
+#else
+        VkImageMemoryBarrier imb{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+        imb.oldLayout = (VkImageLayout)oldLayout;
+        imb.newLayout = (VkImageLayout)newLayout;
+        imb.subresourceRange = VkImageSubresourceRange{ getAspectFlags(), 0, (uint32_t)numMips, 0, (uint32_t)layers };
+        imb.image = image;
+        imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imb.srcAccessMask = getOldAccessFlags(lastAccess);
+        imb.dstAccessMask = getOldAccessFlags(lastAccess);
+
+        vkCmdPipelineBarrier(
+                cb.GetNativeHandle(),
+                getOldPipelineStageFlags(lastPipelineStage),
+                getOldPipelineStageFlags(lastPipelineStage),
+                VK_DEPENDENCY_BY_REGION_BIT,
+                0, nullptr,
+                0, nullptr,
+                1, &imb
+        );
+#endif
     }
 
     Texture::~Texture()
@@ -360,12 +566,22 @@ namespace R2::VK
 
     VkImageAspectFlags Texture::getAspectFlags() const
     {
-        if (format == TextureFormat::D32_SFLOAT)
+        if (format == TextureFormat::D32_SFLOAT || format == TextureFormat::D16_UNORM)
         {
             return VK_IMAGE_ASPECT_DEPTH_BIT;
         }
 
         return VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+
+    uint32_t Texture::GetUsageFlags()
+    {
+        return usageFlags;
+    }
+
+    uint32_t Texture::GetImageFlags()
+    {
+        return imageFlags;
     }
 
     TextureView::TextureView(Core* core, Texture* texture, TextureSubset subset)
