@@ -14,12 +14,11 @@ namespace R2
         dslb.Binding(0, VK::DescriptorType::CombinedImageSampler, NUM_TEXTURES, 
             VK::ShaderStage::Vertex | VK::ShaderStage::Fragment | VK::ShaderStage::Compute)
             .PartiallyBound()
-            .UpdateAfterBind()
-            .VariableDescriptorCount();
+            .UpdateAfterBind();
 
         textureDescriptorSetLayout = dslb.Build();
 
-        textureDescriptors = core->CreateDescriptorSet(textureDescriptorSetLayout, NUM_TEXTURES);
+        textureDescriptors = core->CreateDescriptorSet(textureDescriptorSetLayout);
 
         VK::SamplerBuilder sb{core};
         sampler = sb
