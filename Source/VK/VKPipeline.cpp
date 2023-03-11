@@ -390,7 +390,8 @@ namespace R2::VK
             {
                 .format = (VkFormat)depthFormat,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp = VK_ATTACHMENT_STORE_OP_STORE
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .samples = (VkSampleCountFlagBits)numSamples
             };
             rpKey.useDepth = true;
         }
@@ -401,7 +402,8 @@ namespace R2::VK
             {
                 .format = (VkFormat)attachmentFormats[0],
                 .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-                .storeOp = VK_ATTACHMENT_STORE_OP_STORE
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .samples = (VkSampleCountFlagBits)numSamples
             };
             rpKey.useColor = true;
         }

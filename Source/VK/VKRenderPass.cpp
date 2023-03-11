@@ -164,7 +164,8 @@ namespace R2::VK
             {
                 .format = (VkFormat)depthAttachment.Texture->GetFormat(),
                 .loadOp = convertLoadOp(depthAttachment.LoadOp),
-                .storeOp = convertStoreOp(depthAttachment.StoreOp)
+                .storeOp = convertStoreOp(depthAttachment.StoreOp),
+                .samples = (VkSampleCountFlagBits)depthAttachment.Texture->GetSamples()
             };
             key.useDepth = true;
         }
@@ -175,7 +176,8 @@ namespace R2::VK
             {
                 .format = (VkFormat)colorAttachment.Texture->GetFormat(),
                 .loadOp = convertLoadOp(colorAttachment.LoadOp),
-                .storeOp = convertStoreOp(colorAttachment.StoreOp)
+                .storeOp = convertStoreOp(colorAttachment.StoreOp),
+                .samples = (VkSampleCountFlagBits)colorAttachment.Texture->GetSamples()
             };
             key.useColor = true;
         }

@@ -13,13 +13,15 @@ namespace R2::VK
         VkFormat format;
         VkAttachmentLoadOp loadOp;
         VkAttachmentStoreOp storeOp;
+        VkSampleCountFlagBits samples;
 
         bool operator==(const RenderPassAttachment& other) const
         {
             return
                 format == other.format &&
                 loadOp == other.loadOp &&
-                storeOp == other.storeOp;
+                storeOp == other.storeOp &&
+                samples == other.samples;
         }
     };
     
@@ -92,6 +94,7 @@ namespace std
             hash_combine(result, c.format);
             hash_combine(result, c.loadOp);
             hash_combine(result, c.storeOp);
+            hash_combine(result, c.samples);
             return result;
         }
     };

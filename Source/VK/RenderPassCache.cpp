@@ -19,7 +19,7 @@ namespace R2::VK
         return VkAttachmentDescription {
             .flags = 0,
             .format = attachment.format,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .samples = attachment.samples,
             .loadOp = attachment.loadOp,
             .storeOp = attachment.storeOp,
             .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
