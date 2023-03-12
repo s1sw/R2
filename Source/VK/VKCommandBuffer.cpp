@@ -131,35 +131,38 @@ namespace R2::VK
 
     void CommandBuffer::TextureBarrier(Texture* tex, PipelineStageFlags srcStage, PipelineStageFlags dstStage, AccessFlags srcAccess, AccessFlags dstAccess)
     {
-        #ifdef USE_SYNC_2
-        VkImageMemoryBarrier2 imageBarrier { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-        imageBarrier.image = tex->GetNativeHandle();
-        imageBarrier.oldLayout = imageBarrier.newLayout = (VkImageLayout)tex->lastLayout;
-        tex->lastAccess = dstAccess;
-        imageBarrier.srcStageMask = (VkPipelineStageFlags2)srcStage;
-        imageBarrier.dstStageMask = (VkPipelineStageFlags2)dstStage;
-        imageBarrier.srcAccessMask = (VkAccessFlags2)srcAccess;
-        imageBarrier.dstAccessMask = (VkAccessFlags2)dstAccess;
-        imageBarrier.subresourceRange = VkImageSubresourceRange { tex->getAspectFlags(), 0, (uint32_t)tex->GetNumMips(), 0, (uint32_t)tex->GetLayerCount() };
+        if (vkCmdPipelineBarrier2 != NULL)
+        {
+            VkImageMemoryBarrier2 imageBarrier { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+            imageBarrier.image = tex->GetNativeHandle();
+            imageBarrier.oldLayout = imageBarrier.newLayout = (VkImageLayout)tex->lastLayout;
+            tex->lastAccess = dstAccess;
+            imageBarrier.srcStageMask = (VkPipelineStageFlags2)srcStage;
+            imageBarrier.dstStageMask = (VkPipelineStageFlags2)dstStage;
+            imageBarrier.srcAccessMask = (VkAccessFlags2)srcAccess;
+            imageBarrier.dstAccessMask = (VkAccessFlags2)dstAccess;
+            imageBarrier.subresourceRange = VkImageSubresourceRange { tex->getAspectFlags(), 0, (uint32_t)tex->GetNumMips(), 0, (uint32_t)tex->GetLayerCount() };
 
-        VkDependencyInfo di { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-        di.imageMemoryBarrierCount = 1;
-        di.pImageMemoryBarriers = &imageBarrier;
-        di.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-        vkCmdPipelineBarrier2(cb, &di);
-        #else
-        VkImageMemoryBarrier imageBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-        imageBarrier.image = tex->GetNativeHandle();
-        imageBarrier.oldLayout = imageBarrier.newLayout = (VkImageLayout)tex->lastLayout;
-        tex->lastAccess = dstAccess;
-        imageBarrier.srcAccessMask = getOldAccessFlags(srcAccess);
-        imageBarrier.dstAccessMask = getOldAccessFlags(dstAccess);
-        imageBarrier.subresourceRange = VkImageSubresourceRange { tex->getAspectFlags(), 0, (uint32_t)tex->GetNumMips(), 0, (uint32_t)tex->GetLayerCount() };
-        imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            VkDependencyInfo di { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+            di.imageMemoryBarrierCount = 1;
+            di.pImageMemoryBarriers = &imageBarrier;
+            di.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+            vkCmdPipelineBarrier2(cb, &di);
+        }
+        else
+        {
+            VkImageMemoryBarrier imageBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+            imageBarrier.image = tex->GetNativeHandle();
+            imageBarrier.oldLayout = imageBarrier.newLayout = (VkImageLayout)tex->lastLayout;
+            tex->lastAccess = dstAccess;
+            imageBarrier.srcAccessMask = getOldAccessFlags(srcAccess);
+            imageBarrier.dstAccessMask = getOldAccessFlags(dstAccess);
+            imageBarrier.subresourceRange = VkImageSubresourceRange { tex->getAspectFlags(), 0, (uint32_t)tex->GetNumMips(), 0, (uint32_t)tex->GetLayerCount() };
+            imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
-        vkCmdPipelineBarrier(cb, getOldPipelineStageFlags(srcStage), getOldPipelineStageFlags(dstStage), 0, 0, nullptr, 0, nullptr, 1, &imageBarrier);
-        #endif
+            vkCmdPipelineBarrier(cb, getOldPipelineStageFlags(srcStage), getOldPipelineStageFlags(dstStage), 0, 0, nullptr, 0, nullptr, 1, &imageBarrier);
+        }
     }
 
     VkOffset3D convertOffset(Offset3D offset)

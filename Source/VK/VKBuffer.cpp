@@ -4,11 +4,9 @@
 #include <R2/VKDeletionQueue.hpp>
 #include <R2/VKEnums.hpp>
 #include <R2/VKUtil.hpp>
+#include <VKSyncLegacyHelpers.hpp>
 #include <volk.h>
 #include <vk_mem_alloc.h>
-#ifndef __ANDROID__
-#define USE_SYNC_2
-#endif
 
 namespace R2::VK
 {
@@ -120,94 +118,96 @@ namespace R2::VK
         vkCmdCopyBuffer(cb, buffer, other->buffer, 1, &bufferCopy);
     }
 
-    // implemented in VKTexture.cpp
-    extern VkAccessFlags getOldAccessFlags(AccessFlags access);
-    extern VkPipelineStageFlags getOldPipelineStageFlags(PipelineStageFlags flags);
-
     void Buffer::Acquire(CommandBuffer cb, AccessFlags access)
     {
-#ifdef USE_SYNC_2
-        VkBufferMemoryBarrier2 bmb { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
-        bmb.buffer = buffer;
-        bmb.offset = 0;
-        bmb.size = VK_WHOLE_SIZE;
-        bmb.srcAccessMask = (VkAccessFlags2)lastAccess;
-        bmb.srcStageMask = (VkPipelineStageFlags2)lastPipelineStage;
-        bmb.dstAccessMask = (VkAccessFlags2)access;
-        bmb.dstStageMask = (VkPipelineStageFlags2)getPipelineStage(access);
+        if (vkCmdPipelineBarrier2 != NULL)
+        {
+            VkBufferMemoryBarrier2 bmb { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
+            bmb.buffer = buffer;
+            bmb.offset = 0;
+            bmb.size = VK_WHOLE_SIZE;
+            bmb.srcAccessMask = (VkAccessFlags2)lastAccess;
+            bmb.srcStageMask = (VkPipelineStageFlags2)lastPipelineStage;
+            bmb.dstAccessMask = (VkAccessFlags2)access;
+            bmb.dstStageMask = (VkPipelineStageFlags2)getPipelineStage(access);
 
-        VkDependencyInfo di { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-        di.pBufferMemoryBarriers = &bmb;
-        di.bufferMemoryBarrierCount = 1;
-        vkCmdPipelineBarrier2(cb.GetNativeHandle(), &di);
-        lastAccess = access;
-        lastPipelineStage = getPipelineStage(access);
+            VkDependencyInfo di { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+            di.pBufferMemoryBarriers = &bmb;
+            di.bufferMemoryBarrierCount = 1;
+            vkCmdPipelineBarrier2(cb.GetNativeHandle(), &di);
+            lastAccess = access;
+            lastPipelineStage = getPipelineStage(access);
 
-        vkCmdPipelineBarrier2(cb.GetNativeHandle(), &di);
-#else
-        VkBufferMemoryBarrier bmb{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-        bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        bmb.srcAccessMask = getOldAccessFlags(lastAccess);
-        bmb.dstAccessMask = getOldAccessFlags(access);
-        bmb.size = VK_WHOLE_SIZE;
-        bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        bmb.buffer = buffer;
+            vkCmdPipelineBarrier2(cb.GetNativeHandle(), &di);
+        }
+        else
+        {
+            VkBufferMemoryBarrier bmb{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+            bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            bmb.srcAccessMask = getOldAccessFlags(lastAccess);
+            bmb.dstAccessMask = getOldAccessFlags(access);
+            bmb.size = VK_WHOLE_SIZE;
+            bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            bmb.buffer = buffer;
 
-        vkCmdPipelineBarrier(
-                cb.GetNativeHandle(),
-                getOldPipelineStageFlags(lastPipelineStage),
-                getOldPipelineStageFlags(lastPipelineStage),
-                VK_DEPENDENCY_BY_REGION_BIT,
-                0, nullptr,
-                1, &bmb,
-                0, nullptr
-        );
-#endif
+            vkCmdPipelineBarrier(
+                    cb.GetNativeHandle(),
+                    getOldPipelineStageFlags(lastPipelineStage),
+                    getOldPipelineStageFlags(lastPipelineStage),
+                    VK_DEPENDENCY_BY_REGION_BIT,
+                    0, nullptr,
+                    1, &bmb,
+                    0, nullptr
+            );
+        }
     }
 
     void Buffer::Acquire(CommandBuffer cb, AccessFlags access, PipelineStageFlags stage)
     {
-#ifdef USE_SYNC_2
-        VkBufferMemoryBarrier2 bmb { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
-        bmb.buffer = buffer;
-        bmb.offset = 0;
-        bmb.size = VK_WHOLE_SIZE;
-        bmb.srcAccessMask = (VkAccessFlags2)lastAccess;
-        bmb.srcStageMask = (VkPipelineStageFlags2)lastPipelineStage;
-        bmb.dstAccessMask = (VkAccessFlags2)access;
-        bmb.dstStageMask = (VkPipelineStageFlags2)stage;
+        if (vkCmdPipelineBarrier2 != NULL)
+        {
+            VkBufferMemoryBarrier2 bmb { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
+            bmb.buffer = buffer;
+            bmb.offset = 0;
+            bmb.size = VK_WHOLE_SIZE;
+            bmb.srcAccessMask = (VkAccessFlags2)lastAccess;
+            bmb.srcStageMask = (VkPipelineStageFlags2)lastPipelineStage;
+            bmb.dstAccessMask = (VkAccessFlags2)access;
+            bmb.dstStageMask = (VkPipelineStageFlags2)stage;
 
-        VkDependencyInfo di { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-        di.pBufferMemoryBarriers = &bmb;
-        di.bufferMemoryBarrierCount = 1;
-        vkCmdPipelineBarrier2(cb.GetNativeHandle(), &di);
-        lastAccess = access;
-        lastPipelineStage = stage;
+            VkDependencyInfo di { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+            di.pBufferMemoryBarriers = &bmb;
+            di.bufferMemoryBarrierCount = 1;
+            vkCmdPipelineBarrier2(cb.GetNativeHandle(), &di);
+            lastAccess = access;
+            lastPipelineStage = stage;
 
-        vkCmdPipelineBarrier2(cb.GetNativeHandle(), &di);
-#else
-        VkBufferMemoryBarrier bmb{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-        bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        bmb.srcAccessMask = getOldAccessFlags(lastAccess);
-        bmb.dstAccessMask = getOldAccessFlags(access);
-        bmb.size = VK_WHOLE_SIZE;
-        bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        bmb.buffer = buffer;
+            vkCmdPipelineBarrier2(cb.GetNativeHandle(), &di);
+        }
+        else
+        {
+            VkBufferMemoryBarrier bmb{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+            bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            bmb.srcAccessMask = getOldAccessFlags(lastAccess);
+            bmb.dstAccessMask = getOldAccessFlags(access);
+            bmb.size = VK_WHOLE_SIZE;
+            bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            bmb.buffer = buffer;
 
-        vkCmdPipelineBarrier(
-                cb.GetNativeHandle(),
-                getOldPipelineStageFlags(lastPipelineStage),
-                getOldPipelineStageFlags(stage),
-                VK_DEPENDENCY_BY_REGION_BIT,
-                0, nullptr,
-                1, &bmb,
-                0, nullptr
-        );
-#endif
+            vkCmdPipelineBarrier(
+                    cb.GetNativeHandle(),
+                    getOldPipelineStageFlags(lastPipelineStage),
+                    getOldPipelineStageFlags(stage),
+                    VK_DEPENDENCY_BY_REGION_BIT,
+                    0, nullptr,
+                    1, &bmb,
+                    0, nullptr
+            );
+        }
     }
 
     Buffer::~Buffer()
