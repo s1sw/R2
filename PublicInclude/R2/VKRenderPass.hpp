@@ -72,6 +72,8 @@ namespace R2::VK
         RenderPass& DepthAttachment(Texture* tex, LoadOp loadOp, StoreOp storeOp);
         RenderPass& DepthAttachmentClearValue(ClearValue val);
 
+        RenderPass& FragmentShadingRateAttachment(Texture* tex, uint32_t texelWidth, uint32_t texelHeight);
+
         RenderPass& ViewMask(uint32_t viewMask);
 
         void Begin(CommandBuffer cb);
@@ -85,11 +87,20 @@ namespace R2::VK
             ClearValue ClearValue;
         };
 
+        struct FragmentShadingRateAttachmentInfo
+        {
+            Texture* tex;
+            uint32_t texelWidth;
+            uint32_t texelHeight;
+        };
+
         AttachmentInfo colorAttachments[4];
         uint32_t numColorAttachments;
         AttachmentInfo depthAttachment;
         uint32_t width;
         uint32_t height;
         uint32_t viewMask;
+        FragmentShadingRateAttachmentInfo fragmentShadingRateAttachment;
+        bool useFragmentShadingRateAttachment;
     };
 }

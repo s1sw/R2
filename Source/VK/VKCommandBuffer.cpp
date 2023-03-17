@@ -290,6 +290,15 @@ namespace R2::VK
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bic);
     }
 
+    void CommandBuffer::SetFragmentShadingRate(uint32_t fragWidth, uint32_t fragHeight, FragmentShadingRateCombineOp combineOps[2])
+    {
+        VkExtent2D fragSize{ fragWidth, fragHeight };
+        VkFragmentShadingRateCombinerOpKHR combinerOps[2];
+        combinerOps[0] = (VkFragmentShadingRateCombinerOpKHR)combineOps[0];
+        combinerOps[1] = (VkFragmentShadingRateCombinerOpKHR)combineOps[1];
+        vkCmdSetFragmentShadingRateKHR(cb, &fragSize, combinerOps);
+    }
+
     void CommandBuffer::SetEvent(Event *evt)
     {
         vkCmdSetEvent(cb, evt->GetNativeHandle(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);

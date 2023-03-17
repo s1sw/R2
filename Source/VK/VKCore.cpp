@@ -377,7 +377,7 @@ namespace R2::VK
                                        texture->GetNativeHandle(),
                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &vbic);
 
-                offset += CalculateTextureByteSize(texture->GetFormat(), currWidth, currHeight);
+                offset += CalculateTextureByteSize(texture->GetFormat(), currWidth, currHeight, texture->GetLayerCount());
             }
 
             texture->Acquire(frameResources.UploadCommandBuffer, ImageLayout::ReadOnlyOptimal, AccessFlags::MemoryRead,
@@ -565,7 +565,7 @@ namespace R2::VK
                                        bttc.Texture->GetNativeHandle(),
                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &vbic);
 
-                offset += CalculateTextureByteSize(bttc.Texture->GetFormat(), mipScale(w, i), mipScale(h, i));
+                offset += CalculateTextureByteSize(bttc.Texture->GetFormat(), mipScale(w, i), mipScale(h, i), bttc.Texture->GetLayerCount());
             }
 
             bttc.Texture->Acquire(cb, ImageLayout::ReadOnlyOptimal, AccessFlags::MemoryRead,

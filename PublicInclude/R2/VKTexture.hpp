@@ -353,6 +353,7 @@ namespace R2::VK
         TransferDstOptimal = 7,
         Preinitialized = 8,
 
+        FragmentShadingRateOptimal = 1000164003,
         ReadOnlyOptimal = 1000314000,
         AttachmentOptimal = 1000314001,
         PresentSrc = 1000001002
@@ -366,7 +367,7 @@ namespace R2::VK
     };
 
     TextureBlockInfo GetTextureBlockInfo(TextureFormat format);
-    uint64_t CalculateTextureByteSize(TextureFormat format, uint32_t width, uint32_t height);
+    uint64_t CalculateTextureByteSize(TextureFormat format, uint32_t width, uint32_t height, uint32_t layers = 1);
 
     struct TextureCreateInfo
     {
@@ -412,6 +413,7 @@ namespace R2::VK
         bool IsTransient = false;
         bool CanSample = true;
         bool CanTransfer = true;
+        bool CanUseAsShadingRateAttachment = false;
     };
 
     class Texture

@@ -263,9 +263,9 @@ namespace R2::VK
 
         // Dynamic state
         VkPipelineDynamicStateCreateInfo dynamicStateCI{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
-        VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+        VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_FRAGMENT_SHADING_RATE_KHR, VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
         dynamicStateCI.pDynamicStates = dynamicStates;
-        dynamicStateCI.dynamicStateCount = 2;
+        dynamicStateCI.dynamicStateCount = 3;
 
         // Rasterization state
         VkPipelineRasterizationStateCreateInfo rasterizationStateCI{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
@@ -368,6 +368,8 @@ namespace R2::VK
         pci.pMultisampleState = &multisampleStateCI;
         pci.pViewportState = &viewportStateCI;
         pci.layout = layout;
+        pci.flags = VK_PIPELINE_CREATE_RENDERING_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
+
 
 #ifndef R2_USE_RENDERPASS_FALLBACK
         // Rendering state

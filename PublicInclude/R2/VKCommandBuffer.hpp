@@ -113,6 +113,15 @@ namespace R2::VK
         uint32_t firstInstance;
     };
 
+    enum class FragmentShadingRateCombineOp
+    {
+        Keep = 0,
+        Replace = 1,
+        Min = 2,
+        Max = 3,
+        Mul = 4
+    };
+
     enum class ShaderStage;
 
     class DescriptorSet;
@@ -158,6 +167,8 @@ namespace R2::VK
         void UpdateBuffer(Buffer* buffer, uint64_t offset, uint64_t size, void* data);
         void FillBuffer(Buffer* buffer, uint64_t offset, uint64_t size, uint32_t data);
         void CopyBufferToTexture(Buffer* buffer, Texture* texture, BufferTextureCopy btc);
+
+        void SetFragmentShadingRate(uint32_t fragWidth, uint32_t fragHeight, FragmentShadingRateCombineOp combineOps[2]);
 
         void SetEvent(Event* evt);
         void ResetEvent(Event* evt);

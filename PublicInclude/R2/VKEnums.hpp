@@ -53,7 +53,8 @@ namespace R2::VK
         MemoryWrite = 0x00010000ULL,
         ShaderSampledRead = 0x100000000ULL,
         ShaderStorageRead = 0x200000000ULL,
-        ShaderStorageWrite = 0x400000000ULL
+        ShaderStorageWrite = 0x400000000ULL,
+        FragmentShadingRateAttachmentRead = 0x00800000ULL
     };
 
     inline AccessFlags operator|(const AccessFlags& a, const AccessFlags& b)
@@ -89,6 +90,7 @@ namespace R2::VK
         IndexInput = 0x1000000000ULL,
         VertexAttributeInput = 0x2000000000ULL,
         PreRasterizationShaders = 0x4000000000ULL,
+        FragmentShadingRateAttachment = 0x00400000ULL
     };
 
     inline PipelineStageFlags operator|(const PipelineStageFlags& a, const PipelineStageFlags& b)

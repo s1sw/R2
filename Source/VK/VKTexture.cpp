@@ -40,18 +40,19 @@ namespace R2::VK
         case TextureFormat::R8G8B8A8_SRGB:
         case TextureFormat::R8G8B8A8_UNORM:
             return TextureBlockInfo{1, 1, 4};
+        case TextureFormat::R8_UINT:
         default:
             return TextureBlockInfo{1, 1, 1};
         }
     }
 
-    uint64_t CalculateTextureByteSize(TextureFormat format, uint32_t width, uint32_t height)
+    uint64_t CalculateTextureByteSize(TextureFormat format, uint32_t width, uint32_t height, uint32_t layers)
     {
         TextureBlockInfo blockInfo = GetTextureBlockInfo(format);
 
         uint32_t blocksX = (width + blockInfo.BlockWidth - 1) / blockInfo.BlockWidth;
         uint32_t blocksY = (height + blockInfo.BlockHeight - 1) / blockInfo.BlockHeight;
-        return blockInfo.BytesPerBlock * blocksX * blocksY;
+        return layers * blockInfo.BytesPerBlock * blocksX * blocksY;
     }
     
     VkImageType convertType(TextureDimension dim)
@@ -156,6 +157,11 @@ namespace R2::VK
         if (createInfo.CanTransfer)
         {
             ici.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        }
+
+        if (createInfo.CanUseAsShadingRateAttachment)
+        {
+            ici.usage |= VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
         }
 
         if (createInfo.IsTransient)
