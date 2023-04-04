@@ -329,10 +329,13 @@ namespace R2::VK
 
     void CommandBuffer::EndRendering()
     {
-#ifndef R2_USE_RENDERPASS_FALLBACK
-        vkCmdEndRendering(cb);
-#else
-        vkCmdEndRenderPass(cb);
-#endif
+        if (g_renderPassCache == nullptr)
+        {
+            vkCmdEndRendering(cb);
+        }
+        else
+        {
+            vkCmdEndRenderPass(cb);
+        }
     }
 }

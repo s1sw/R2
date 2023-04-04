@@ -28,9 +28,7 @@ namespace R2::VK
     const uint32_t NUM_FRAMES_IN_FLIGHT = 2;
     const size_t STAGING_BUFFER_SIZE = 64_MB;
     IDebugOutputReceiver* g_dbgOutRecv;
-#ifdef R2_USE_RENDERPASS_FALLBACK
     RenderPassCache* g_renderPassCache;
-#endif
     
     void onFailedVkCheck(int res, const char* file, int line)
     {
@@ -63,10 +61,6 @@ namespace R2::VK
         createCommandPool();
         createAllocator();
         createDescriptorPool();
-
-#ifdef R2_USE_RENDERPASS_FALLBACK
-        g_renderPassCache = new RenderPassCache(this);
-#endif
 
         VkPhysicalDeviceProperties deviceProps{};
         vkGetPhysicalDeviceProperties(handles.PhysicalDevice, &deviceProps);

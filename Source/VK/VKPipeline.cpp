@@ -370,48 +370,50 @@ namespace R2::VK
         pci.layout = layout;
         pci.flags = VK_PIPELINE_CREATE_RENDERING_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
 
-
-#ifndef R2_USE_RENDERPASS_FALLBACK
-        // Rendering state
-        VkPipelineRenderingCreateInfo renderingCI{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-        renderingCI.colorAttachmentCount = (uint32_t)attachmentFormats.size();
-        if (attachmentFormats.size() > 0)
-            renderingCI.pColorAttachmentFormats = reinterpret_cast<VkFormat*>(&attachmentFormats[0]);
-        renderingCI.depthAttachmentFormat = static_cast<VkFormat>(depthFormat);
-        renderingCI.viewMask = viewMask;
-        pci.pNext = &renderingCI;
-#else
-        RenderPassKey rpKey
+        if (g_renderPassCache == nullptr)
         {
-            .viewMask = viewMask
-        };
-        
-        if (depthFormat != TextureFormat::UNDEFINED)
-        {
-            rpKey.depthAttachment = RenderPassAttachment
-            {
-                .format = (VkFormat)depthFormat,
-                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                .samples = (VkSampleCountFlagBits)numSamples
-            };
-            rpKey.useDepth = true;
+            // Rendering state
+            VkPipelineRenderingCreateInfo renderingCI{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+            renderingCI.colorAttachmentCount = (uint32_t)attachmentFormats.size();
+            if (attachmentFormats.size() > 0)
+                renderingCI.pColorAttachmentFormats = reinterpret_cast<VkFormat*>(&attachmentFormats[0]);
+            renderingCI.depthAttachmentFormat = static_cast<VkFormat>(depthFormat);
+            renderingCI.viewMask = viewMask;
+            pci.pNext = &renderingCI;
         }
-
-        if (!attachmentFormats.empty())
+        else
         {
-            rpKey.colorAttachment = RenderPassAttachment
+            RenderPassKey rpKey
             {
-                .format = (VkFormat)attachmentFormats[0],
-                .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                .samples = (VkSampleCountFlagBits)numSamples
+                .viewMask = viewMask
             };
-            rpKey.useColor = true;
-        }
 
-        pci.renderPass = g_renderPassCache->GetPass(rpKey);
-#endif
+            if (depthFormat != TextureFormat::UNDEFINED)
+            {
+                rpKey.depthAttachment = RenderPassAttachment
+                {
+                    .format = (VkFormat)depthFormat,
+                    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                    .samples = (VkSampleCountFlagBits)numSamples
+                };
+                rpKey.useDepth = true;
+            }
+
+            if (!attachmentFormats.empty())
+            {
+                rpKey.colorAttachment = RenderPassAttachment
+                {
+                    .format = (VkFormat)attachmentFormats[0],
+                    .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+                    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                    .samples = (VkSampleCountFlagBits)numSamples
+                };
+                rpKey.useColor = true;
+            }
+
+            pci.renderPass = g_renderPassCache->GetPass(rpKey);
+        }
 
         VkPipeline pipeline;
         VKCHECK(vkCreateGraphicsPipelines(core->GetHandles()->Device, nullptr, 1, &pci, core->GetHandles()->AllocCallbacks, &pipeline));

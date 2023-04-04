@@ -1,10 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <unordered_map>
-
-#ifdef __ANDROID__
-#define R2_USE_RENDERPASS_FALLBACK
-#endif
+#include <volk.h>
 
 namespace R2::VK
 {

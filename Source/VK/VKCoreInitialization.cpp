@@ -1,5 +1,6 @@
 #include <R2/VKCore.hpp>
 #include <R2/R2.hpp>
+#include <RenderPassCache.hpp>
 #include <volk.h>
 #ifdef __ANDROID__
 #include <vulkan/vulkan_android.h>
@@ -226,6 +227,15 @@ namespace R2::VK
         supportedFeatures.RayTracing = checkRaytracingSupport(handles.PhysicalDevice);
         supportedFeatures.VariableRateShading = checkExtensionSupport(handles.PhysicalDevice, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
         supportedFeatures.DynamicRendering = checkExtensionSupport(handles.PhysicalDevice, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+
+        if (!supportedFeatures.DynamicRendering)
+        {
+            g_renderPassCache = new RenderPassCache(this);
+        }
+        else
+        {
+            g_renderPassCache = nullptr;
+        }
 
         // Features
         // ========
