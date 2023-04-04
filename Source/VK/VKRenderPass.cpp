@@ -41,6 +41,7 @@ namespace R2::VK
     RenderPass::RenderPass()
         : numColorAttachments(0)
         , viewMask(0)
+        , useFragmentShadingRateAttachment(false)
     {
         depthAttachment.Texture = nullptr;
     }
@@ -87,6 +88,18 @@ namespace R2::VK
     RenderPass& RenderPass::DepthAttachmentClearValue(ClearValue cv)
     {
         depthAttachment.ClearValue = cv;
+
+        return *this;
+    }
+
+    RenderPass& RenderPass::FragmentShadingRateAttachment(Texture* tex, uint32_t texelWidth, uint32_t texelHeight)
+    {
+        useFragmentShadingRateAttachment = true;
+        fragmentShadingRateAttachment = FragmentShadingRateAttachmentInfo{
+            .tex = tex,
+            .texelWidth = texelWidth,
+            .texelHeight = texelHeight
+        };
 
         return *this;
     }
@@ -145,6 +158,20 @@ namespace R2::VK
         }
 
         renderInfo.pColorAttachments = colorAttachmentInfos;
+
+        VkRenderingFragmentShadingRateAttachmentInfoKHR fsrAttachmentInfo{ VK_STRUCTURE_TYPE_RENDERING_FRAGMENT_SHADING_RATE_ATTACHMENT_INFO_KHR };
+        if (useFragmentShadingRateAttachment)
+        {
+            fragmentShadingRateAttachment.tex->Acquire(cb, VK::ImageLayout::FragmentShadingRateOptimal,
+                VK::AccessFlags::FragmentShadingRateAttachmentRead, VK::PipelineStageFlags::FragmentShadingRateAttachment);
+
+            fsrAttachmentInfo.imageView = fragmentShadingRateAttachment.tex->GetView();
+            fsrAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR;
+            fsrAttachmentInfo.shadingRateAttachmentTexelSize.width = fragmentShadingRateAttachment.texelWidth;
+            fsrAttachmentInfo.shadingRateAttachmentTexelSize.height = fragmentShadingRateAttachment.texelHeight;
+
+            renderInfo.pNext = &fsrAttachmentInfo;
+        }
 
         vkCmdBeginRendering(cb.GetNativeHandle(), &renderInfo);
 #else

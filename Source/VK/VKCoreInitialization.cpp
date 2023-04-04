@@ -289,7 +289,9 @@ namespace R2::VK
         {
             chainEnd->pNext = &vrsFeatures;
             vrsFeatures.attachmentFragmentShadingRate = VK_TRUE;
-            vrsFeatures.primitiveFragmentShadingRate = VK_FALSE;
+            vrsFeatures.primitiveFragmentShadingRate = VK_TRUE;
+            vrsFeatures.pipelineFragmentShadingRate = VK_TRUE;
+            chainEnd = (ChainHeader*)&vrsFeatures;
         }
 
         // Extensions
