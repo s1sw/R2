@@ -225,6 +225,7 @@ namespace R2::VK
         VkDeviceCreateInfo dci{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
         supportedFeatures.RayTracing = checkRaytracingSupport(handles.PhysicalDevice);
         supportedFeatures.VariableRateShading = checkExtensionSupport(handles.PhysicalDevice, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
+        supportedFeatures.DynamicRendering = checkExtensionSupport(handles.PhysicalDevice, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
 
         // Features
         // ========

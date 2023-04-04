@@ -82,6 +82,7 @@ namespace R2::VK
 	{
 		bool RayTracing;
 		bool VariableRateShading;
+		bool DynamicRendering;
 	};
 
 	void onFailedVkCheck(int res, const char* file, int line);
