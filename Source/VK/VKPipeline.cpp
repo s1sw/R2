@@ -370,10 +370,10 @@ namespace R2::VK
         pci.layout = layout;
         pci.flags = VK_PIPELINE_CREATE_RENDERING_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
 
+        VkPipelineRenderingCreateInfo renderingCI{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
         if (g_renderPassCache == nullptr)
         {
             // Rendering state
-            VkPipelineRenderingCreateInfo renderingCI{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
             renderingCI.colorAttachmentCount = (uint32_t)attachmentFormats.size();
             if (attachmentFormats.size() > 0)
                 renderingCI.pColorAttachmentFormats = reinterpret_cast<VkFormat*>(&attachmentFormats[0]);
