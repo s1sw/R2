@@ -532,6 +532,7 @@ namespace R2::VK
         // Handle pending buffer uploads
         for (BufferUpload& bu : frameResources.BufferUploads)
         {
+            bu.Buffer->Acquire(cb, AccessFlags::TransferWrite, PipelineStageFlags::Transfer);
             frameResources.StagingBuffer->CopyTo(cb,
                                                  bu.Buffer, bu.DataSize, bu.StagingOffset, bu.DataOffset);
         }
