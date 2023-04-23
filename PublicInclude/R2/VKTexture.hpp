@@ -16,6 +16,7 @@ namespace R2::VK
     struct Handles;
     class CommandBuffer;
     class Core;
+    class MemoryPool;
 
     enum class TextureDimension
     {
@@ -405,15 +406,16 @@ namespace R2::VK
         int Depth;
         int Layers;
         int NumMips;
-        bool IsRenderTarget;
         TextureFormat Format;
         TextureDimension Dimension;
         int Samples;
-        bool CanUseAsStorage = true;
-        bool IsTransient = false;
-        bool CanSample = true;
-        bool CanTransfer = true;
-        bool CanUseAsShadingRateAttachment = false;
+        bool IsRenderTarget : 1;
+        bool CanUseAsStorage : 1 = true;
+        bool IsTransient : 1 = false;
+        bool CanSample : 1 = true;
+        bool CanTransfer : 1 = true;
+        bool CanUseAsShadingRateAttachment : 1 = false;
+        MemoryPool* Pool = nullptr;
     };
 
     class Texture

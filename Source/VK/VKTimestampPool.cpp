@@ -15,6 +15,11 @@ namespace R2::VK
         VKCHECK(vkCreateQueryPool(handles->Device, &qpci, handles->AllocCallbacks, &queryPool));
     }
 
+    TimestampPool::~TimestampPool()
+    {
+        vkDestroyQueryPool(handles->Device, queryPool, handles->AllocCallbacks);
+    }
+
     void TimestampPool::Reset(CommandBuffer& cb)
     {
         vkCmdResetQueryPool(cb.GetNativeHandle(), queryPool, 0, numTimestamps);

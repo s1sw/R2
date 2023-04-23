@@ -11,7 +11,8 @@ namespace R2
     {
         VK::DescriptorSetLayoutBuilder dslb{core};
 
-        dslb.Binding(0, VK::DescriptorType::CombinedImageSampler, NUM_TEXTURES, 
+        dslb.Binding(0, VK::DescriptorType::Sampler, 1, VK::ShaderStage::Vertex | VK::ShaderStage::Fragment | VK::ShaderStage::Compute);
+        dslb.Binding(1, VK::DescriptorType::SampledImage, NUM_TEXTURES, 
             VK::ShaderStage::Vertex | VK::ShaderStage::Fragment | VK::ShaderStage::Compute)
             .PartiallyBound()
             .UpdateAfterBind();
@@ -33,6 +34,10 @@ namespace R2
             presentTextures[i] = false;
             useView[i] = false;
         }
+
+        VK::DescriptorSetUpdater dsu{core, textureDescriptors};
+        dsu.AddSampler(0, 0, VK::DescriptorType::Sampler, sampler);
+        dsu.Update();
     }
 
     BindlessTextureManager::~BindlessTextureManager()
@@ -119,11 +124,11 @@ namespace R2
 
                 if (!useView[i])
                 {
-                    dsu.AddTexture(0, i, VK::DescriptorType::CombinedImageSampler, textures[i], sampler);
+                    dsu.AddTexture(1, i, VK::DescriptorType::SampledImage, textures[i]);
                 }
                 else
                 {
-                    dsu.AddTextureView(0, i, VK::DescriptorType::CombinedImageSampler, textureViews[i], sampler);
+                    dsu.AddTextureView(1, i, VK::DescriptorType::SampledImage, textureViews[i]);
                 }
             }
 

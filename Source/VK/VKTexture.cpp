@@ -10,6 +10,8 @@
 #include <assert.h>
 #include <math.h>
 
+#include "R2/VKMemoryPool.hpp"
+
 namespace R2::VK
 {
     TextureBlockInfo GetTextureBlockInfo(TextureFormat format)
@@ -200,6 +202,10 @@ namespace R2::VK
         const Handles* handles = core->GetHandles();
 
         VmaAllocationCreateInfo vaci{};
+        if (createInfo.Pool)
+        {
+            vaci.pool = createInfo.Pool->GetNativeHandle();
+        }
 #ifdef __ANDROID__
         vaci.usage = createInfo.IsTransient ? VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED : VMA_MEMORY_USAGE_AUTO;
 #else

@@ -51,9 +51,9 @@ namespace R2::VK
         if (enableValidation)
         {
             layers.push_back("VK_LAYER_KHRONOS_validation");
-            extensions.push_back("VK_EXT_debug_utils");
         }
 
+        extensions.push_back("VK_EXT_debug_utils");
         extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 #ifdef _WIN32
         extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
@@ -265,6 +265,7 @@ namespace R2::VK
 #ifndef __ANDROID__
         features13.synchronization2 = true;
         features13.dynamicRendering = true;
+        features13.maintenance4 = true;
 #endif
 
         dci.pNext = &features;
@@ -308,6 +309,7 @@ namespace R2::VK
         // ==========
         std::vector<const char*> extensions;
         extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+        extensions.push_back(VK_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER_EXTENSION_NAME);
 
         if (supportedFeatures.RayTracing)
         {

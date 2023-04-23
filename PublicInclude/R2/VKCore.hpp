@@ -196,5 +196,6 @@ namespace R2::VK
 		friend class Sampler;
 		friend class Texture;
 		friend class TextureView;
+		friend class MemoryPool;
 	};
 }

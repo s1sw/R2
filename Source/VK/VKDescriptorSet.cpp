@@ -160,6 +160,22 @@ namespace R2::VK
         descriptorWrites.reserve(numDescriptors);
     }
 
+    DescriptorSetUpdater& DescriptorSetUpdater::AddSampler(uint32_t binding, uint32_t arrayElement, DescriptorType type,
+        Sampler* sampler)
+    {
+        DSWrite dw{};
+        dw.Binding = binding;
+        dw.ArrayElement = arrayElement;
+        dw.Type = type;
+        dw.WriteType = DSWriteType::Sampler;
+        dw.TextureLayout = ImageLayout::Undefined;
+        dw.Sampler = sampler;
+
+        descriptorWrites.push_back(dw);
+
+        return *this;
+    }
+
     DescriptorSetUpdater& DescriptorSetUpdater::AddTexture(uint32_t binding, uint32_t arrayElement, DescriptorType type,
                                                            Texture* tex, Sampler* samp)
     {
@@ -238,7 +254,7 @@ namespace R2::VK
 
         for (DSWrite& dw : descriptorWrites)
         {
-            if (dw.WriteType == DSWriteType::Texture || dw.WriteType == DSWriteType::TextureView)
+            if (dw.WriteType == DSWriteType::Texture || dw.WriteType == DSWriteType::TextureView || dw.WriteType == DSWriteType::Sampler)
             {
                 numImageInfos++;
             }
@@ -298,6 +314,15 @@ namespace R2::VK
                     bii.range = VK_WHOLE_SIZE;
                     bufferInfos.push_back(bii);
                     vw.pBufferInfo = &bufferInfos[bufferInfos.size() - 1];
+                    break;
+                }
+            case DSWriteType::Sampler:
+                {
+                    VkDescriptorImageInfo dii{};
+                    dii.sampler = dw.Sampler->GetNativeHandle();
+                    
+                    imageInfos.push_back(dii);
+                    vw.pImageInfo = &imageInfos[imageInfos.size() - 1];
                     break;
                 }
             }

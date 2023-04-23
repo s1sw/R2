@@ -88,6 +88,7 @@ namespace R2::VK
     public:
         DescriptorSetUpdater(Core* core, DescriptorSet* ds);
         DescriptorSetUpdater(Core* core, DescriptorSet* ds, int numDescriptors);
+        DescriptorSetUpdater& AddSampler(uint32_t binding, uint32_t arrayElement, DescriptorType type, Sampler* sampler);
         DescriptorSetUpdater& AddTexture(uint32_t binding, uint32_t arrayElement, DescriptorType type, Texture* tex, Sampler* sampler = nullptr);
         DescriptorSetUpdater& AddTextureWithLayout(uint32_t binding, uint32_t arrayElement, DescriptorType type, Texture* tex, ImageLayout layout, Sampler* sampler = nullptr);
         DescriptorSetUpdater& AddTextureView(uint32_t binding, uint32_t arrayElement, DescriptorType type, TextureView* texView, Sampler* sampler = nullptr);
@@ -98,7 +99,8 @@ namespace R2::VK
         {
             Texture,
             TextureView,
-            Buffer
+            Buffer,
+            Sampler
         };
 
         struct DSWrite

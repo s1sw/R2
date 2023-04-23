@@ -21,6 +21,11 @@ namespace R2::VK
     {
         memoryFrees.push_back({ allocation, line, file });
     }
+    
+    void DeletionQueue::QueuePoolDeletion(VmaPool pool, int line, const char* file)
+    {
+        poolDeletions.push_back({ pool, line, file });
+    }
 
     void DeletionQueue::QueueDescriptorSetFree(VkDescriptorPool pool, VkDescriptorSet set, int line, const char* file)
     {
@@ -35,6 +40,11 @@ namespace R2::VK
     void DeletionQueue::QueueMemoryFree(VmaAllocation allocation)
     {
         memoryFrees.push_back({ allocation });
+    }
+
+    void DeletionQueue::QueuePoolDeletion(VmaPool pool)
+    {
+        poolDeletions.push_back({ pool });
     }
 
     void DeletionQueue::QueueDescriptorSetFree(VkDescriptorPool pool, VkDescriptorSet set)
@@ -53,6 +63,11 @@ namespace R2::VK
         for (const MemoryFree& mf : memoryFrees)
         {
             processMemoryFree(mf);
+        }
+        
+        for (const PoolDeletion& pd : poolDeletions)
+        {
+            processPoolDeletion(pd);
         }
 
         for (const DescriptorSetFree& dsf : dsFrees)
@@ -115,5 +130,10 @@ namespace R2::VK
     void DeletionQueue::processMemoryFree(const MemoryFree& mf)
     {
         vmaFreeMemory(handles->Allocator, mf.allocation);
+    }
+
+    void DeletionQueue::processPoolDeletion(const PoolDeletion& pd)
+    {
+        vmaDestroyPool(handles->Allocator, pd.pool);
     }
 }

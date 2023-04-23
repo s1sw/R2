@@ -17,6 +17,7 @@ namespace R2::VK
         int numTimestamps;
     public:
         TimestampPool(const Handles* handles, int numTimestamps);
+        ~TimestampPool();
         void Reset(CommandBuffer& cb);
         void Reset(CommandBuffer& cb, int offset, int count);
         bool GetTimestamps(int offset, int count, uint64_t* out);

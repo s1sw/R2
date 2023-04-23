@@ -5,6 +5,7 @@
 #define VK_DEFINE_HANDLE(object) typedef struct object##_T* object;
 VK_DEFINE_HANDLE(VmaAllocator)
 VK_DEFINE_HANDLE(VmaAllocation)
+VK_DEFINE_HANDLE(VmaPool)
 VK_DEFINE_HANDLE(VkDevice)
 VK_DEFINE_HANDLE(VkDescriptorPool)
 VK_DEFINE_HANDLE(VkDescriptorSet)
@@ -21,11 +22,13 @@ namespace R2::VK
 #ifdef DQ_TRACK_SOURCE
         void QueueObjectDeletion(void* object, uint32_t type, int line, const char* file);
         void QueueMemoryFree(VmaAllocation allocation, int line, const char* file);
+        void QueuePoolDeletion(VmaPool pool, int line, const char* file);
         void QueueDescriptorSetFree(VkDescriptorPool dPool, VkDescriptorSet ds, int line, const char* file);
 #else
         void QueueObjectDeletion(void* object, uint32_t type);
         void QueueMemoryFree(VmaAllocation allocation);
-        void QueueDescriptorSetFree(VkDescriptorPool dPool, VkDescriptorSet ds);
+        void QueuePoolDeletion(VmaPool pool);
+        void QueueDescriptorSetFree(VkDescriptorPool pool, VkDescriptorSet ds);
 #endif
         void Cleanup();
     private:
@@ -49,6 +52,15 @@ namespace R2::VK
             const char* file;
 #endif
         };
+        
+        struct PoolDeletion
+        {
+            VmaPool pool;
+#ifdef DQ_TRACK_SOURCE
+            int line;
+            const char* file;
+#endif
+        };
 
         struct DescriptorSetFree
         {
@@ -62,19 +74,23 @@ namespace R2::VK
 
         std::vector<ObjectDeletion> objectDeletions;
         std::vector<MemoryFree> memoryFrees;
+        std::vector<PoolDeletion> poolDeletions;
         std::vector<DescriptorSetFree> dsFrees;
 
         void processObjectDeletion(const ObjectDeletion& od);
         void processMemoryFree(const MemoryFree& mf);
+        void processPoolDeletion(const PoolDeletion& pd);
     };
 
 #ifdef DQ_TRACK_SOURCE
     #define DQ_QueueObjectDeletion(queue, object, type) queue->QueueObjectDeletion(object, type, __LINE__, __FILE__)
     #define DQ_QueueMemoryFree(queue, allocation) queue->QueueMemoryFree(allocation, __LINE__, __FILE__)
+    #define DQ_QueuePoolDeletion(queue, pool) queue->QueuePoolDeletion(pool, __LINE__, __FILE__)
     #define DQ_QueueDescriptorSetFree(queue, pool, set) queue->QueueDescriptorSetFree(pool, set, __LINE__, __FILE__)
 #else
     #define DQ_QueueObjectDeletion(queue, object, type) queue->QueueObjectDeletion(object, type)
     #define DQ_QueueMemoryFree(queue, allocation) queue->QueueMemoryFree(allocation)
+    #define DQ_QueuePoolDeletion(queue, pool) queue->QueuePoolDeletion(pool)
     #define DQ_QueueDescriptorSetFree(queue, pool, set) queue->QueueDescriptorSetFree(pool, set)
 #endif
 }
